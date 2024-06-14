@@ -43,7 +43,10 @@ public class MessageFragment extends Fragment {
                     @Override
                     public void onDateSet(DatePicker view, int selectedYear, int selectedMonth, int selectedDay) {
                         // Month is 0-based in DatePickerDialog
-                        String selectedDate = selectedDay + "/" + (selectedMonth + 1) + "/" + selectedYear;
+                        String formattedM = String.format("%02d", selectedMonth+1);
+                        String formattedD = String.format("%02d", selectedDay);
+
+                        String selectedDate = formattedD + "/" + formattedM + "/" + selectedYear;
                         binding.textDate.setText("Date: " + selectedDate);
                     }
                 },
@@ -63,7 +66,12 @@ public class MessageFragment extends Fragment {
                 new TimePickerDialog.OnTimeSetListener() {
                     @Override
                     public void onTimeSet(TimePicker timePicker, int selectedHour, int selectedMinute) {
-                        String selectedDate = selectedHour + ":" + selectedMinute;
+
+                        String formattedH = String.format("%02d", selectedHour);
+                        String formattedM = String.format("%02d", selectedMinute);
+
+
+                        String selectedDate = formattedH + ":" + formattedM;
                         binding.textTime.setText("Time: " + selectedDate);
                     }
                 },
