@@ -1,4 +1,4 @@
-package com.example.custombatchsmssenderandeventplanner.ui.home;
+package com.example.custombatchsmssenderandeventplanner.ui.event;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
