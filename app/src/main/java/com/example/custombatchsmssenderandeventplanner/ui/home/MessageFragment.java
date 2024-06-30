@@ -22,39 +22,6 @@ import com.example.custombatchsmssenderandeventplanner.databinding.MessageFragme
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
-import android.telephony.SmsManager;
-import android.content.pm.PackageManager;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
-private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 1;
-
-private void checkForSmsPermission() {
-    if (ContextCompat.checkSelfPermission(getActivity(), android.Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
-        ActivityCompat.requestPermissions(getActivity(), new String[]{android.Manifest.permission.SEND_SMS}, MY_PERMISSIONS_REQUEST_SEND_SMS);
-    } else {
-        // Permission already granted. You can send SMS here.
-        sendSMS("+972503006771", "Hello, this is a test message!");
-    }
-}
-
-@Override
-public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-    if (requestCode == MY_PERMISSIONS_REQUEST_SEND_SMS) {
-        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            // Permission granted. You can send SMS here.
-            sendSMS("+972503006771", "Hello, this is a test message2!");
-        } else {
-            // Permission denied.
-        }
-    }
-}
-
-private void sendSMS(String phoneNumber, String message) {
-    SmsManager smsManager = SmsManager.getDefault();
-    smsManager.sendTextMessage(phoneNumber, null, message, null, null);
-}
 
 public class MessageFragment extends Fragment {
 
@@ -128,7 +95,7 @@ public class MessageFragment extends Fragment {
         List<ContactListItem> data = Arrays.asList(
                 new ContactListItem("Yoav Karpassi", "+972505716749"),
                 new ContactListItem("Yoav Karpassi 2", "+972505716749"),
-        new ContactListItem("Yoav Karpassi 3", "+972505716749")
+                new ContactListItem("Yoav Karpassi 3", "+972505716749")
 
         );
         ContactsAdapter adapter = new ContactsAdapter(data);
