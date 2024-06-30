@@ -1,4 +1,4 @@
-package com.example.custombatchsmssenderandeventplanner.ui.home;
+package com.example.custombatchsmssenderandeventplanner.ui.event;
 
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
@@ -15,7 +15,6 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.custombatchsmssenderandeventplanner.databinding.MessageFragmentBinding;
 

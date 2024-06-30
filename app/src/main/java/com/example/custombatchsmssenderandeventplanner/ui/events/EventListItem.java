@@ -1,10 +1,10 @@
-package com.example.custombatchsmssenderandeventplanner.ui.home;
+package com.example.custombatchsmssenderandeventplanner.ui.events;
 
-public class ContactListItem {
+public class EventListItem {
     private String primaryText;
     private String secondaryText;
 
-    public ContactListItem(String primaryText, String secondaryText) {
+    public EventListItem(String primaryText, String secondaryText) {
         this.primaryText = primaryText;
         this.secondaryText = secondaryText;
     }

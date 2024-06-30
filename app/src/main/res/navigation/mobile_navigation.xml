@@ -25,7 +25,13 @@
 
     <fragment
         android:id="@+id/nav_message"
-        android:name="com.example.custombatchsmssenderandeventplanner.ui.home.MessageFragment"
+        android:name="com.example.custombatchsmssenderandeventplanner.ui.event.MessageFragment"
         android:label="@string/menu_message"
         tools:layout="@layout/message_fragment" />
+
+    <fragment
+        android:id="@+id/nav_events"
+        android:name="com.example.custombatchsmssenderandeventplanner.ui.events.EventsFragment"
+        android:label="@string/menu_events"
+        tools:layout="@layout/events_fragment" />
 </navigation>

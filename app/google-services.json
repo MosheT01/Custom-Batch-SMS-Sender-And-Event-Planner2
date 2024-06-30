@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "251621687575",
+    "project_id": "batchsmsandroid",
+    "storage_bucket": "batchsmsandroid.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:251621687575:android:eea94646d0363f3f0a3752",
+        "android_client_info": {
+          "package_name": "com.example.custombatchsmssenderandeventplanner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAt5HAggBC1QJziSV---kvs46rSSMOL9dQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

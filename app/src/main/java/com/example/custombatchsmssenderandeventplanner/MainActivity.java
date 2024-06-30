@@ -1,6 +1,7 @@
 package com.example.custombatchsmssenderandeventplanner;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 
@@ -15,18 +16,23 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.custombatchsmssenderandeventplanner.databinding.ActivityMainBinding;
+import com.google.firebase.FirebaseApp;
 
 public class MainActivity extends AppCompatActivity {
 
     private AppBarConfiguration mAppBarConfiguration;
     private ActivityMainBinding binding;
+    FirebaseApp app;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
+        app = FirebaseApp.initializeApp(this);
 
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
 
         setSupportActionBar(binding.appBarMain.toolbar);
 //        binding.appBarMain.fab.setOnClickListener(new View.OnClickListener() {
@@ -42,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
         mAppBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.nav_message, R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow)
+                R.id.nav_events, R.id.nav_message, R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow)
                 .setOpenableLayout(drawer)
                 .build();
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
