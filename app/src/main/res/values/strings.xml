@@ -9,5 +9,7 @@
 
     <string name="menu_home">Home</string>
     <string name="menu_gallery">Gallery</string>
+    <string name="menu_message">Message</string>
+    <string name="menu_events">Events</string>
     <string name="menu_slideshow">Slideshow</string>
 </resources>

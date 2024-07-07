@@ -6,14 +6,14 @@ import androidx.lifecycle.ViewModel;
 
 public class HomeViewModel extends ViewModel {
 
-    private final MutableLiveData<String> mText;
+    private final MutableLiveData<String> messageText;
 
     public HomeViewModel() {
-        mText = new MutableLiveData<>();
-        mText.setValue("This is home fragment");
+        messageText = new MutableLiveData<>();
+        messageText.setValue("This is home fragment1");
     }
 
     public LiveData<String> getText() {
-        return mText;
+        return messageText;
     }
 }

@@ -10,6 +10,8 @@ import org.junit.runner.RunWith;
 
 import static org.junit.Assert.*;
 
+import com.google.firebase.FirebaseApp;
+
 /**
  * Instrumented test, which will execute on an Android device.
  *
@@ -21,6 +23,7 @@ public class ExampleInstrumentedTest {
     public void useAppContext() {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        FirebaseApp app = FirebaseApp.initializeApp(appContext);
         assertEquals("com.example.custombatchsmssenderandeventplanner", appContext.getPackageName());
     }
 }
