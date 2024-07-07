@@ -105,23 +105,52 @@
 
     </LinearLayout>
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Contacts:"
-        android:textSize="20dp"
-        />
+        android:orientation="horizontal"
+        >
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Contacts:    "
+            android:textSize="20dp"
+            />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_open_contact_form"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Add"
+            />
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/contacts_list"
         android:layout_width="match_parent"
         android:layout_height="300dp"
-        android:id="@+id/contacts_list"
+        android:padding="16dp"
+        android:clipToPadding="false"
+        />
+
+    <EditText
+        android:id="@+id/text_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:lines="3"
         />
 
     <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_save_event"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Save"
+        />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_send"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Send SMS"
         />
 
 </LinearLayout>

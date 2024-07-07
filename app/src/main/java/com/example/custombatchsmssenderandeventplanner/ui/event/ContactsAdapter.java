@@ -1,11 +1,14 @@
 package com.example.custombatchsmssenderandeventplanner.ui.event;
 
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.custombatchsmssenderandeventplanner.R;
 
 import java.util.List;
 
@@ -14,6 +17,9 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.ViewHo
     final List<ContactListItem> mData;
 
     public ContactsAdapter(List<ContactListItem> data) {
+        data.forEach(d -> {
+            Log.d("DATA", d.getPrimaryText() + " " + d.getSecondaryText());
+        });
         this.mData = data;
     }
 

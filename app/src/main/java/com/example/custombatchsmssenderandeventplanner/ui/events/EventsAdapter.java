@@ -1,35 +1,57 @@
 package com.example.custombatchsmssenderandeventplanner.ui.events;
 
+import static java.security.AccessController.getContext;
+
+import android.app.Activity;
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.custombatchsmssenderandeventplanner.R;
+import com.example.custombatchsmssenderandeventplanner.databinding.MessageFragmentBinding;
+import com.example.custombatchsmssenderandeventplanner.event.Event;
+import com.example.custombatchsmssenderandeventplanner.ui.event.EventActivity;
 
 import java.util.List;
 
 public class EventsAdapter extends RecyclerView.Adapter<EventsAdapter.ViewHolder> {
 
-    final List<com.example.custombatchsmssenderandeventplanner.ui.events.EventListItem> mData;
+    final List<Event> mData;
+    Activity activity;
 
-    public EventsAdapter(List<EventListItem> data) {
+    public EventsAdapter(List<Event> data, Activity activity) {
         this.mData = data;
+        this.activity = activity;
     }
 
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(android.R.layout.two_line_list_item, parent, false);
+                .inflate(R.layout.list_item, parent, false);
         return new ViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        holder.textName.setText(mData.get(position).getPrimaryText());
-        holder.textPhone.setText(mData.get(position).getSecondaryText());
+        holder.textName.setText(mData.get(position).getName());
+        holder.textName.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(activity, EventActivity.class);
+                intent.putExtra("id", mData.get(position).getId());
+                activity.startActivity(intent);
+//                NavController navController = Navigation.findNavController(activity, R.id.nav_host_fragment_content_main);
+//                navController.navigate(R.id.nav_message);
+            }
+        });
     }
 
     @Override
@@ -39,12 +61,10 @@ public class EventsAdapter extends RecyclerView.Adapter<EventsAdapter.ViewHolder
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         TextView textName;
-        TextView textPhone;
 
         ViewHolder(View itemView) {
             super(itemView);
-            textName = itemView.findViewById(android.R.id.text1);
-            textPhone = itemView.findViewById(android.R.id.text2);
+            textName = itemView.findViewById(R.id.text1);
         }
     }
 }

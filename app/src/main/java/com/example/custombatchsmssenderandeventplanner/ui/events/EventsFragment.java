@@ -2,6 +2,7 @@ package com.example.custombatchsmssenderandeventplanner.ui.events;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,19 +12,30 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.example.custombatchsmssenderandeventplanner.MainActivity;
 import com.example.custombatchsmssenderandeventplanner.R;
 import com.example.custombatchsmssenderandeventplanner.databinding.EventsFragmentBinding;
 import com.example.custombatchsmssenderandeventplanner.databinding.MessageFragmentBinding;
+import com.example.custombatchsmssenderandeventplanner.event.Contact;
 import com.example.custombatchsmssenderandeventplanner.event.Event;
 import com.example.custombatchsmssenderandeventplanner.ui.event.ContactListItem;
 import com.example.custombatchsmssenderandeventplanner.ui.event.ContactsAdapter;
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.QuerySnapshot;
+
+import java.sql.Array;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,7 +48,8 @@ public class EventsFragment extends Fragment {
 
     private EventsFragmentBinding binding;
     FirebaseFirestore db;
-
+    EventsAdapter adapter;
+    List<Event> items;
     private void showCustomDialog() {
         // Create an AlertDialog builder
         AlertDialog.Builder builder = new AlertDialog.Builder(this.getContext());
@@ -55,13 +68,23 @@ public class EventsFragment extends Fragment {
         dialogButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                TextInputLayout name = dialogView.findViewById(R.id.event_name);
                 // Handle the button click event
-                Event ev = new Event("1", "Test", new Date(), new ArrayList<>(), "Hello");
+                Event ev = new Event("", name.getEditText().getText().toString(), "", new Date(), new ArrayList<>(), "You are invited to {name} event.");
                 db.collection("events")
                         .add(ev.toHashMap())
                         .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
                             @Override
                             public void onSuccess(DocumentReference documentReference) {
+                                documentReference.get()
+                                                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+                                                    @Override
+                                                    public void onSuccess(DocumentSnapshot documentSnapshot) {
+                                                        items.add(new Event(documentReference.getId(), documentSnapshot.getString("name"), documentSnapshot.getString("location"), documentSnapshot.getDate("date"), (ArrayList<Contact>)documentSnapshot.get("contacts"), documentSnapshot.getString("message")));
+                                                        adapter.notifyDataSetChanged();
+                                                    }
+                                                });
+                                Log.d("TTTT", "onSuccess: " + documentReference);
                                 Toast.makeText(getContext(), "Done", Toast.LENGTH_SHORT);
                             }
                         })
@@ -94,14 +117,26 @@ public class EventsFragment extends Fragment {
         binding = EventsFragmentBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
-        List<EventListItem> data = Arrays.asList(
-                new EventListItem("Yoav Karpassi", "+972505716749"),
-                new EventListItem("Yoav Karpassi 2", "+972505716749"),
-        new EventListItem("Yoav Karpassi 3", "+972505716749")
+        binding.eventsList.setLayoutManager(new LinearLayoutManager(getContext()));
 
-        );
-        EventsAdapter adapter = new EventsAdapter(data);
+        items = new ArrayList<>();
+        adapter = new EventsAdapter(items, getActivity());
         binding.eventsList.setAdapter(adapter);
+
+        db.collection("events").get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        items.clear();
+                        for (QueryDocumentSnapshot document : task.getResult()) {
+                            Event item = new Event(document.getId(), document.getString("name"), document.getString("location"), document.getDate("date"), new ArrayList<>(), document.getString("message"));
+                            items.add(item);
+                        }
+                        adapter.notifyDataSetChanged();
+                    } else {
+                        // Handle errors
+                    }
+                })
+        ;
 
         binding.btnAdd.setOnClickListener(new View.OnClickListener() {
             @Override
