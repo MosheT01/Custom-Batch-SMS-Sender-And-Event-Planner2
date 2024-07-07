@@ -312,6 +312,7 @@ public class EventActivity extends AppCompatActivity {
                                 event = new Event(document.getId(), document.getString("name"), document.getString("location"), document.getDate("date"), (ArrayList)document.get("contacts"), document.getString("message"));
 
                                 // send sms
+
                             }
                         });
             }
