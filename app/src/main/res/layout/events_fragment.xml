@@ -1,22 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView android:layout_width="match_parent"
-    android:layout_height="match_parent"
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    tools:context=".ui.event.MessageFragment">
-<LinearLayout
+    tools:context=".ui.event.MessageFragment"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="8dp"
     >
 
+    <TextView
+        android:id="@+id/text_events"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="My Events"
+        />
+
     <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/events_list"
         android:layout_width="match_parent"
         android:layout_height="300dp"
-        android:id="@+id/events_list"
+        android:padding="16dp"
+        android:clipToPadding="false"
         />
+
+
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btn_add"
@@ -28,4 +37,3 @@
         />
 
 </LinearLayout>
-</ScrollView>
