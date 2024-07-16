@@ -34,4 +34,10 @@
         android:name="com.example.custombatchsmssenderandeventplanner.ui.events.EventsFragment"
         android:label="@string/menu_events"
         tools:layout="@layout/events_fragment" />
+
+    <fragment
+        android:id="@+id/nav_report"
+        android:name="com.example.custombatchsmssenderandeventplanner.ui.Report.ReportFragment"
+        android:label="Report"
+        tools:layout="@layout/report_fragment" />
 </navigation>
