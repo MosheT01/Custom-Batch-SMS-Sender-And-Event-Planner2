@@ -1,75 +1,78 @@
 package com.example.custombatchsmssenderandeventplanner.event;
 
-import com.google.firebase.firestore.FirebaseFirestore;
-
-import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.HashMap;
+import java.util.Map;
 
 public class Event {
-
     private String id;
     private String name;
-    private String message;
     private String location;
     private Date date;
-    private ArrayList<Contact> contacts;
+    private List<Contact> contacts;
+    private String message;
 
-    public Event(String id, String name, String location, Date date, ArrayList<Contact> contacts, String message) {
+    public Event(String id, String name, String location, Date date, List<Contact> contacts, String message) {
         this.id = id;
         this.name = name;
+        this.location = location;
         this.date = date;
         this.contacts = contacts;
         this.message = message;
-        this.location = location;
-    }
-
-    public String getName() {
-        return name;
     }
 
     public String getId() {
         return id;
     }
 
-    public Contact[] contacts() {
-        return (Contact[])contacts.toArray();
+    public String getName() {
+        return name;
     }
 
-    public boolean addContact(String name, String phone_number) {
-        return this.contacts.add(new Contact(name, phone_number));
+    public String getLocation() {
+        return location;
     }
 
-    public Contact removeContact(int index) {
-        return this.contacts.remove(index);
+    public Date getDate() {
+        return date;
     }
 
-    public void setDate(Date date) {
-        this.date = date;
+    public List<Contact> getContacts() {
+        return contacts;
     }
 
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
+    public String getMessage() {
+        return message;
     }
 
     public void setName(String name) {
         this.name = name;
     }
 
-    public void setContacts(ArrayList<Contact> contacts) {
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public void setDate(Date date) {
+        this.date = date;
+    }
+
+    public void setContacts(List<Contact> contacts) {
         this.contacts = contacts;
     }
 
-    public HashMap toHashMap() {
-        HashMap _event = new HashMap<>();
-        _event.put("name", this.name);
-        _event.put("message", this.message);
-        _event.put("date", this.date);
-        _event.put("location", this.location);
-        return _event;
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public Map<String, Object> toHashMap() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("name", name);
+        map.put("location", location);
+        map.put("date", date);
+        map.put("contacts", contacts);
+        map.put("message", message);
+        return map;
     }
 }
