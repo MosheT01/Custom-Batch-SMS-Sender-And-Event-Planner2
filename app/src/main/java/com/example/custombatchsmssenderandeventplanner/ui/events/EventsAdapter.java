@@ -8,6 +8,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.navigation.NavController;
@@ -18,6 +19,10 @@ import com.example.custombatchsmssenderandeventplanner.R;
 import com.example.custombatchsmssenderandeventplanner.databinding.MessageFragmentBinding;
 import com.example.custombatchsmssenderandeventplanner.event.Event;
 import com.example.custombatchsmssenderandeventplanner.ui.event.EventActivity;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.material.button.MaterialButton;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.core.FirestoreClient;
 
 import java.util.List;
 
@@ -52,6 +57,22 @@ public class EventsAdapter extends RecyclerView.Adapter<EventsAdapter.ViewHolder
 //                navController.navigate(R.id.nav_message);
             }
         });
+
+        holder.btnDelete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                FirebaseFirestore db = FirebaseFirestore.getInstance();
+                db.document("events/" + mData.get(position).getId())
+                        .delete()
+                        .addOnSuccessListener(new OnSuccessListener<Void>() {
+                            @Override
+                            public void onSuccess(Void unused) {
+                                mData.remove(position);
+                                notifyDataSetChanged();
+                            }
+                        });
+            }
+        });
     }
 
     @Override
@@ -61,10 +82,12 @@ public class EventsAdapter extends RecyclerView.Adapter<EventsAdapter.ViewHolder
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         TextView textName;
+        MaterialButton btnDelete;
 
         ViewHolder(View itemView) {
             super(itemView);
             textName = itemView.findViewById(R.id.text1);
+            btnDelete = itemView.findViewById(R.id.btnDelete);
         }
     }
 }
