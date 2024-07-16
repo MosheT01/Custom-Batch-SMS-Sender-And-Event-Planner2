@@ -19,6 +19,7 @@ import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.telephony.SmsManager;
@@ -51,6 +52,8 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
+import java.util.TimeZone;
 
 public class EventActivity extends AppCompatActivity {
 
@@ -355,22 +358,35 @@ public class EventActivity extends AppCompatActivity {
         Log.d(TAG, "LINK_DEBUG: Formatted message: " + formattedMessage);
         return formattedMessage;
     }
-
     private String generateGoogleCalendarLink(String eventName, String eventLocation, Date eventDate) {
         try {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'");
-            String formattedDate = dateFormat.format(eventDate);
-            String link = "https://www.google.com/calendar/render?action=TEMPLATE&text=" + eventName +
-                    "&dates=" + formattedDate + "/" + formattedDate +
-                    "&details=" + eventName +
-                    "&location=" + eventLocation;
-            Log.d(TAG, "LINK_DEBUG: Generated Google Calendar link: " + link);
+            // Set up the date format in UTC
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.getDefault());
+            dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            String startDate = dateFormat.format(eventDate);
+
+            // Set the event duration (e.g., 1 hour)
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(eventDate);
+            calendar.add(Calendar.HOUR_OF_DAY, 1); // Add 1 hour to the start time
+            String endDate = dateFormat.format(calendar.getTime());
+
+            // Generate the Google Calendar link
+            String link = "https://calendar.google.com/calendar/render?action=TEMPLATE" +
+                    "&text=" + Uri.encode(eventName) +
+                    "&details=" + Uri.encode("Details about the event") +
+                    "&location=" + Uri.encode(eventLocation) +
+                    "&dates=" + startDate + "/" + endDate +
+                    "&sf=true&output=xml";
+
+            Log.d(TAG, "Generated Google Calendar link: " + link);
             return link;
         } catch (Exception e) {
-            Log.e(TAG, "LINK_DEBUG: Error generating Google Calendar link", e);
+            Log.e(TAG, "Error generating Google Calendar link", e);
             return null;
         }
     }
+
 
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
