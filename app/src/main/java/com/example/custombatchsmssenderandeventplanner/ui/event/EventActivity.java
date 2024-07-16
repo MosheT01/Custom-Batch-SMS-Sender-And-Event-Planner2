@@ -11,8 +11,13 @@ import android.Manifest;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.telephony.SmsManager;
 import android.text.Editable;
@@ -26,6 +31,7 @@ import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
+import com.example.custombatchsmssenderandeventplanner.MainActivity;
 import com.example.custombatchsmssenderandeventplanner.R;
 import com.example.custombatchsmssenderandeventplanner.event.Contact;
 import com.example.custombatchsmssenderandeventplanner.event.Event;
@@ -37,17 +43,24 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class EventActivity extends AppCompatActivity {
 
     private static final int SMS_PERMISSION_REQUEST_CODE = 100;
     private static final String TAG = "EventActivity";
+    private static final String CHANNEL_ID = "SMSNotificationChannel";
 
     private MessageViewModel mViewModel;
     private FirebaseFirestore db;
@@ -217,7 +230,6 @@ public class EventActivity extends AppCompatActivity {
                         ((TextInputLayout) findViewById(R.id.event_name)).getEditText().addTextChangedListener(new TextWatcher() {
                             @Override
                             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-
                             }
 
                             @Override
@@ -227,14 +239,12 @@ public class EventActivity extends AppCompatActivity {
 
                             @Override
                             public void afterTextChanged(Editable editable) {
-
                             }
                         });
                         ((TextInputLayout) findViewById(R.id.event_location)).getEditText().setText(document.getString("location"));
                         ((TextInputLayout) findViewById(R.id.event_location)).getEditText().addTextChangedListener(new TextWatcher() {
                             @Override
                             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-
                             }
 
                             @Override
@@ -244,7 +254,6 @@ public class EventActivity extends AppCompatActivity {
 
                             @Override
                             public void afterTextChanged(Editable editable) {
-
                             }
                         });
                         ((TextView) findViewById(R.id.text_date)).setText("Date: " + formattedDate);
@@ -254,7 +263,6 @@ public class EventActivity extends AppCompatActivity {
                         ((EditText) findViewById(R.id.text_message)).addTextChangedListener(new TextWatcher() {
                             @Override
                             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-
                             }
 
                             @Override
@@ -264,7 +272,6 @@ public class EventActivity extends AppCompatActivity {
 
                             @Override
                             public void afterTextChanged(Editable editable) {
-
                             }
                         });
                         ArrayList<HashMap<String, String>> arr = (ArrayList<HashMap<String, String>>) document.get("contacts");
@@ -291,6 +298,8 @@ public class EventActivity extends AppCompatActivity {
                 sendSMSMessages();
             }
         });
+
+        createNotificationChannel();
     }
 
     private void saveEvent() {
@@ -341,18 +350,25 @@ public class EventActivity extends AppCompatActivity {
                     public void onSuccess(DocumentSnapshot document) {
                         event = new Event(document.getId(), document.getString("name"), document.getString("location"), document.getDate("date"), (ArrayList) document.get("contacts"), document.getString("message"));
 
-                        SmsManager smsManager = SmsManager.getDefault();
+                        ExecutorService executorService = Executors.newFixedThreadPool(contacts_list.size());
                         for (ContactListItem contact : contacts_list) {
-                            try {
-                                String message = formatMessage(event.getMessage(), contact.getPrimaryText(), contact.getSecondaryText(), event.getName(), event.getLocation(), event.getDate());
-                                smsManager.sendTextMessage(contact.getSecondaryText(), null, message, null, null);
-                                Log.d(TAG, "SMS sent to: " + contact.getSecondaryText());
-                            } catch (Exception e) {
-                                Log.e(TAG, "SMS sending failed to: " + contact.getSecondaryText(), e);
-                            }
+                            executorService.execute(() -> {
+                                try {
+                                    String message = formatMessage(event.getMessage(), contact.getPrimaryText(), contact.getSecondaryText(), event.getName(), event.getLocation(), event.getDate());
+                                    sendSMS(contact.getSecondaryText(), message);
+                                } catch (Exception e) {
+                                    Log.e(TAG, "SMS sending failed to: " + contact.getSecondaryText(), e);
+                                }
+                            });
                         }
-
-                        Toast.makeText(context, "Messages sent!", Toast.LENGTH_SHORT).show();
+                        executorService.shutdown();
+                        try {
+                            if (executorService.awaitTermination(1, TimeUnit.MINUTES)) {
+                                showNotification();
+                            }
+                        } catch (InterruptedException e) {
+                            Log.e(TAG, "Error waiting for SMS sending tasks to complete", e);
+                        }
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
@@ -361,6 +377,55 @@ public class EventActivity extends AppCompatActivity {
                         Log.e(TAG, "Failed to fetch event", e);
                     }
                 });
+    }
+
+    private void sendSMS(String phoneNumber, String message) {
+        try {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED) {
+                SmsManager smsManager = SmsManager.getDefault();
+                smsManager.sendTextMessage(phoneNumber, null, message, null, null);
+                Log.d(TAG, "SMS sent to: " + phoneNumber);
+            } else {
+                Log.e(TAG, "SMS permission not granted for sending SMS to: " + phoneNumber);
+            }
+        } catch (SecurityException e) {
+            Log.e(TAG, "SecurityException while sending SMS to: " + phoneNumber, e);
+        }
+    }
+
+    private void showNotification() {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+
+                .setContentTitle("Messages Sent")
+                .setContentText("All messages have been sent successfully.")
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true);
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+        } else {
+            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+            notificationManager.notify(1, builder.build());
+        }
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = "SMS Notification Channel";
+            String description = "Channel for SMS notifications";
+            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
+            channel.setDescription(description);
+
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
     }
 
     private String formatMessage(String messageTemplate, String contactName, String contactPhone, String eventName, String eventLocation, Date eventDate) {
@@ -373,6 +438,19 @@ public class EventActivity extends AppCompatActivity {
                 .replace("{event name}", eventName)
                 .replace("{location}", eventLocation)
                 .replace("{date}", dateTime.split(" ")[0])
-                .replace("{time}", dateTime.split(" ")[1]);
+                .replace("{time}", dateTime.split(" ")[1])
+                .replace("{link}", generateGoogleCalendarLink(eventName, eventLocation, eventDate));
+    }
+
+    private String generateGoogleCalendarLink(String eventName, String eventLocation, Date eventDate) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
+        String formattedDate = dateFormat.format(eventDate);
+        String endDate = dateFormat.format(new Date(eventDate.getTime() + 3600000)); // Adding 1 hour for end time
+
+        return "https://www.google.com/calendar/render?action=TEMPLATE" +
+                "&text=" + eventName +
+                "&dates=" + formattedDate + "/" + endDate +
+                "&details=" + "Event at " + eventLocation +
+                "&location=" + eventLocation;
     }
 }
