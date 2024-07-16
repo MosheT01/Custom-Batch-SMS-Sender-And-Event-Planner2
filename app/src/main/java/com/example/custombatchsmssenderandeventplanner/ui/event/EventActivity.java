@@ -60,136 +60,11 @@ public class EventActivity extends AppCompatActivity {
 
     private MessageViewModel mViewModel;
     private FirebaseFirestore db;
-    ContactsAdapter adapter;
-    ArrayList<ContactListItem> contacts_list;
-    String eventId;
-    Context context;
-    Event event;
-
-    public String convertDateToDDMMYYYY(Date date) {
-        SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
-        return formatter.format(date);
-    }
-
-    public String convertDateToHHMM(Date date) {
-        SimpleDateFormat formatter = new SimpleDateFormat("HH:mm");
-        return formatter.format(date);
-    }
-
-    private void showCustomDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        LayoutInflater inflater2 = this.getLayoutInflater();
-        View dialogView = inflater2.inflate(R.layout.new_contact_form, null);
-        builder.setView(dialogView);
-
-        MaterialButton dialogButton = dialogView.findViewById(R.id.btn_add_contact);
-        AlertDialog alertDialog = builder.create();
-        alertDialog.show();
-
-        dialogButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                TextInputLayout name = dialogView.findViewById(R.id.contact_name);
-                TextInputLayout phone = dialogView.findViewById(R.id.contact_phone);
-
-                String contactName = name.getEditText().getText().toString();
-                String contactPhone = phone.getEditText().getText().toString();
-
-                if (contactName.isEmpty() || contactPhone.isEmpty()) {
-                    Toast.makeText(context, "Name or phone cannot be empty", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                HashMap<String, Object> contact = new HashMap<>();
-                contact.put("name", contactName);
-                contact.put("phone", contactPhone);
-
-                Log.d(TAG, "Adding contact: " + contact.toString());
-
-                db.document("events/" + eventId)
-                        .update("contacts", FieldValue.arrayUnion(contact))
-                        .addOnSuccessListener(new OnSuccessListener<Void>() {
-                            @Override
-                            public void onSuccess(Void unused) {
-                                Log.d(TAG, "Contact added successfully: " + contact.toString());
-                                contacts_list.add(new ContactListItem(contactName, contactPhone));
-                                adapter.notifyDataSetChanged();
-                                Toast.makeText(context, "Contact added!", Toast.LENGTH_SHORT).show();
-                            }
-                        })
-                        .addOnFailureListener(new OnFailureListener() {
-                            @Override
-                            public void onFailure(@NonNull Exception e) {
-                                Log.e(TAG, "Failed to add contact", e);
-                                Toast.makeText(context, "Failed to add contact", Toast.LENGTH_SHORT).show();
-                            }
-                        });
-
-                alertDialog.dismiss();
-            }
-        });
-    }
-
-    private void showDatePickerDialog() {
-        final Calendar calendar = Calendar.getInstance();
-        int year = calendar.get(Calendar.YEAR);
-        int month = calendar.get(Calendar.MONTH);
-        int day = calendar.get(Calendar.DAY_OF_MONTH);
-
-        DatePickerDialog datePickerDialog = new DatePickerDialog(
-                this,
-                new DatePickerDialog.OnDateSetListener() {
-                    @Override
-                    public void onDateSet(DatePicker view, int selectedYear, int selectedMonth, int selectedDay) {
-                        String formattedM = String.format("%02d", selectedMonth + 1);
-                        String formattedD = String.format("%02d", selectedDay);
-
-                        String selectedDate = formattedD + "/" + formattedM + "/" + selectedYear;
-
-                        updateEventDate(selectedDate, ((TextView) findViewById(R.id.text_time)).getText().toString().replace("Time: ", ""));
-                        ((TextView) findViewById(R.id.text_date)).setText("Date: " + selectedDate);
-                    }
-                },
-                year, month, day);
-        datePickerDialog.show();
-    }
-
-    private void showTimePickerDialog() {
-        final Calendar calendar = Calendar.getInstance();
-        int hour = calendar.get(Calendar.HOUR_OF_DAY);
-        int minute = calendar.get(Calendar.MINUTE);
-
-        TimePickerDialog timePickerDialog = new TimePickerDialog(
-                this,
-                new TimePickerDialog.OnTimeSetListener() {
-                    @Override
-                    public void onTimeSet(TimePicker timePicker, int selectedHour, int selectedMinute) {
-                        String formattedH = String.format("%02d", selectedHour);
-                        String formattedM = String.format("%02d", selectedMinute);
-
-                        String selectedTime = formattedH + ":" + formattedM;
-                        updateEventDate(((TextView) findViewById(R.id.text_date)).getText().toString().replace("Date: ", ""), selectedTime);
-                        ((TextView) findViewById(R.id.text_time)).setText("Time: " + selectedTime);
-                    }
-                },
-                hour, minute, true);
-        timePickerDialog.show();
-    }
-
-    private void updateEventDate(String date, String time) {
-        String dateTime = date + " " + time;
-        event.setDate(convertToDate(dateTime));
-    }
-
-    public static Date convertToDate(String dateString) {
-        SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-        try {
-            return formatter.parse(dateString);
-        } catch (ParseException e) {
-            Log.e(TAG, "Date parsing error", e);
-            return null;
-        }
-    }
+    private ContactsAdapter adapter;
+    private ArrayList<ContactListItem> contactsList;
+    private String eventId;
+    private Context context;
+    private Event event;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -202,138 +77,208 @@ public class EventActivity extends AppCompatActivity {
         this.eventId = this.getIntent().getStringExtra("id");
         mViewModel = new ViewModelProvider(this).get(MessageViewModel.class);
         db = FirebaseFirestore.getInstance();
-        contacts_list = new ArrayList<>();
-        adapter = new ContactsAdapter(contacts_list);
+        contactsList = new ArrayList<>();
+        adapter = new ContactsAdapter(contactsList);
 
         ((MaterialButton) findViewById(R.id.button_date)).setOnClickListener(v -> showDatePickerDialog());
         ((MaterialButton) findViewById(R.id.button_time)).setOnClickListener(v -> showTimePickerDialog());
         ((RecyclerView) findViewById(R.id.contacts_list)).setLayoutManager(new LinearLayoutManager(this));
-        ((MaterialButton) findViewById(R.id.btn_open_contact_form)).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                showCustomDialog();
-            }
-        });
+        ((MaterialButton) findViewById(R.id.btn_open_contact_form)).setOnClickListener(v -> showCustomDialog());
 
         db.document("events/" + eventId).get()
-                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-                    @Override
-                    public void onSuccess(DocumentSnapshot document) {
-                        event = new Event(document.getId(), document.getString("name"), document.getString("location"), document.getDate("date"), (ArrayList) document.get("contacts"), document.getString("message"));
-                        mViewModel.setEventId(
-                                new Event(document.getId(), document.getString("name"), "", document.getDate("date"), new ArrayList<>(), document.getString("message"))
-                        );
+                .addOnSuccessListener(document -> {
+                    event = new Event(document.getId(), document.getString("name"), document.getString("location"), document.getDate("date"), (ArrayList) document.get("contacts"), document.getString("message"));
+                    mViewModel.setEventId(new Event(document.getId(), document.getString("name"), "", document.getDate("date"), new ArrayList<>(), document.getString("message")));
 
-                        Date dd = document.getDate("date");
-                        String formattedDate = convertDateToDDMMYYYY(dd);
-                        String formattedTime = convertDateToHHMM(dd);
+                    Date date = document.getDate("date");
+                    String formattedDate = convertDateToDDMMYYYY(date);
+                    String formattedTime = convertDateToHHMM(date);
 
-                        ((TextInputLayout) findViewById(R.id.event_name)).getEditText().setText(document.getString("name"));
-                        ((TextInputLayout) findViewById(R.id.event_name)).getEditText().addTextChangedListener(new TextWatcher() {
-                            @Override
-                            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+                    setupEventDetails(document, formattedDate, formattedTime);
 
-                            }
-
-                            @Override
-                            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-                                event.setName(charSequence.toString());
-                            }
-
-                            @Override
-                            public void afterTextChanged(Editable editable) {
-
-                            }
-                        });
-                        ((TextInputLayout) findViewById(R.id.event_location)).getEditText().setText(document.getString("location"));
-                        ((TextInputLayout) findViewById(R.id.event_location)).getEditText().addTextChangedListener(new TextWatcher() {
-                            @Override
-                            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-
-                            }
-
-                            @Override
-                            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-                                event.setLocation(charSequence.toString());
-                            }
-
-                            @Override
-                            public void afterTextChanged(Editable editable) {
-
-                            }
-                        });
-                        ((TextView) findViewById(R.id.text_date)).setText("Date: " + formattedDate);
-                        ((TextView) findViewById(R.id.text_time)).setText("Time: " + formattedTime);
-
-                        ((EditText) findViewById(R.id.text_message)).setText(document.getString("message"));
-                        ((EditText) findViewById(R.id.text_message)).addTextChangedListener(new TextWatcher() {
-                            @Override
-                            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-
-                            }
-
-                            @Override
-                            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-                                event.setMessage(charSequence.toString());
-                            }
-
-                            @Override
-                            public void afterTextChanged(Editable editable) {
-
-                            }
-                        });
-                        ArrayList<HashMap<String, String>> arr = (ArrayList<HashMap<String, String>>) document.get("contacts");
-
-                        for (HashMap<String, String> item : arr) {
-                            contacts_list.add(new ContactListItem(item.get("name"), item.get("phone")));
-                        }
-
-                        ((RecyclerView) findViewById(R.id.contacts_list)).setAdapter(adapter);
-                        adapter.notifyDataSetChanged();
+                    ArrayList<HashMap<String, String>> contacts = (ArrayList<HashMap<String, String>>) document.get("contacts");
+                    for (HashMap<String, String> item : contacts) {
+                        contactsList.add(new ContactListItem(item.get("name"), item.get("phone")));
                     }
+
+                    ((RecyclerView) findViewById(R.id.contacts_list)).setAdapter(adapter);
+                    adapter.notifyDataSetChanged();
                 });
 
-        ((MaterialButton) findViewById(R.id.btn_save_event)).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                saveEvent();
-            }
-        });
+        ((MaterialButton) findViewById(R.id.btn_save_event)).setOnClickListener(v -> saveEvent());
+        ((MaterialButton) findViewById(R.id.btn_send)).setOnClickListener(v -> sendMessages());
+    }
 
-        ((MaterialButton) findViewById(R.id.btn_send)).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                sendSMSMessages();
+    private void setupEventDetails(DocumentSnapshot document, String formattedDate, String formattedTime) {
+        TextInputLayout eventNameInput = findViewById(R.id.event_name);
+        TextInputLayout eventLocationInput = findViewById(R.id.event_location);
+        TextView dateTextView = findViewById(R.id.text_date);
+        TextView timeTextView = findViewById(R.id.text_time);
+        EditText messageEditText = findViewById(R.id.text_message);
+
+        eventNameInput.getEditText().setText(document.getString("name"));
+        eventNameInput.getEditText().addTextChangedListener(new SimpleTextWatcher(text -> event.setName(text)));
+
+        eventLocationInput.getEditText().setText(document.getString("location"));
+        eventLocationInput.getEditText().addTextChangedListener(new SimpleTextWatcher(text -> event.setLocation(text)));
+
+        dateTextView.setText("Date: " + formattedDate);
+        timeTextView.setText("Time: " + formattedTime);
+
+        messageEditText.setText(document.getString("message"));
+        messageEditText.addTextChangedListener(new SimpleTextWatcher(text -> event.setMessage(text)));
+    }
+
+    public String convertDateToDDMMYYYY(Date date) {
+        return new SimpleDateFormat("dd/MM/yyyy").format(date);
+    }
+
+    public String convertDateToHHMM(Date date) {
+        return new SimpleDateFormat("HH:mm").format(date);
+    }
+
+    private void showCustomDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.new_contact_form, null);
+        builder.setView(dialogView);
+
+        AlertDialog alertDialog = builder.create();
+        alertDialog.show();
+
+        dialogView.findViewById(R.id.btn_add_contact).setOnClickListener(v -> {
+            TextInputLayout nameInput = dialogView.findViewById(R.id.contact_name);
+            TextInputLayout phoneInput = dialogView.findViewById(R.id.contact_phone);
+
+            String contactName = nameInput.getEditText().getText().toString();
+            String contactPhone = phoneInput.getEditText().getText().toString();
+
+            if (contactName.isEmpty() || contactPhone.isEmpty()) {
+                Toast.makeText(context, "Name or phone cannot be empty", Toast.LENGTH_SHORT).show();
+                return;
             }
+
+            HashMap<String, Object> contact = new HashMap<>();
+            contact.put("name", contactName);
+            contact.put("phone", contactPhone);
+
+            addContactToDatabase(contact, alertDialog);
         });
     }
 
+    private void addContactToDatabase(HashMap<String, Object> contact, AlertDialog alertDialog) {
+        db.document("events/" + eventId)
+                .update("contacts", FieldValue.arrayUnion(contact))
+                .addOnSuccessListener(unused -> {
+                    Log.d(TAG, "Contact added successfully: " + contact);
+                    contactsList.add(new ContactListItem(contact.get("name").toString(), contact.get("phone").toString()));
+                    adapter.notifyDataSetChanged();
+                    Toast.makeText(context, "Contact added!", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to add contact", e);
+                    Toast.makeText(context, "Failed to add contact", Toast.LENGTH_SHORT).show();
+                });
+
+        alertDialog.dismiss();
+    }
+
+    private void showDatePickerDialog() {
+        Calendar calendar = Calendar.getInstance();
+        int year = calendar.get(Calendar.YEAR);
+        int month = calendar.get(Calendar.MONTH);
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+        DatePickerDialog datePickerDialog = new DatePickerDialog(
+                this,
+                (view, selectedYear, selectedMonth, selectedDay) -> {
+                    String selectedDate = String.format("%02d/%02d/%d", selectedDay, selectedMonth + 1, selectedYear);
+                    updateEventDate(selectedDate, getTimeText());
+                    setDateText(selectedDate);
+                },
+                year, month, day);
+        datePickerDialog.show();
+    }
+
+    private void showTimePickerDialog() {
+        Calendar calendar = Calendar.getInstance();
+        int hour = calendar.get(Calendar.HOUR_OF_DAY);
+        int minute = calendar.get(Calendar.MINUTE);
+
+        TimePickerDialog timePickerDialog = new TimePickerDialog(
+                this,
+                (timePicker, selectedHour, selectedMinute) -> {
+                    String selectedTime = String.format("%02d:%02d", selectedHour, selectedMinute);
+                    updateEventDate(getDateText(), selectedTime);
+                    setTimeText(selectedTime);
+                },
+                hour, minute, true);
+        timePickerDialog.show();
+    }
+
+    private void updateEventDate(String date, String time) {
+        String dateTime = date + " " + time;
+        event.setDate(convertToDate(dateTime));
+    }
+
+    private String getDateText() {
+        return ((TextView) findViewById(R.id.text_date)).getText().toString().replace("Date: ", "");
+    }
+
+    private void setTimeText(String time) {
+        ((TextView) findViewById(R.id.text_time)).setText("Time: " + time);
+    }
+
+    private void setDateText(String date) {
+        ((TextView) findViewById(R.id.text_date)).setText("Date: " + date);
+    }
+
+    private String getTimeText() {
+        return ((TextView) findViewById(R.id.text_time)).getText().toString().replace("Time: ", "");
+    }
+
+    public static Date convertToDate(String dateString) {
+        try {
+            return new SimpleDateFormat("dd/MM/yyyy HH:mm").parse(dateString);
+        } catch (ParseException e) {
+            Log.e(TAG, "Date parsing error", e);
+            return null;
+        }
+    }
+    private void saveContactsToDatabase() {
+        // Create a list of contacts in the format expected by Firestore
+        ArrayList<HashMap<String, String>> contactsToSave = new ArrayList<>();
+        for (ContactListItem contact : contactsList) {
+            HashMap<String, String> contactMap = new HashMap<>();
+            contactMap.put("name", contact.getPrimaryText());
+            contactMap.put("phone", contact.getSecondaryText());
+            contactsToSave.add(contactMap);
+        }
+
+        // Update the 'contacts' field of the event document
+        db.document("events/" + eventId)
+                .update("contacts", contactsToSave)
+                .addOnSuccessListener(aVoid -> {
+                    Log.d(TAG, "Contacts saved successfully!");
+                    Toast.makeText(context, "Contacts saved successfully!", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error saving contacts", e);
+                    Toast.makeText(context, "Failed to save contacts.", Toast.LENGTH_SHORT).show();
+                });
+    }
+
+
     private void saveEvent() {
-        Log.d(TAG, "Saving event: " + event.toHashMap().toString());
+        Log.d(TAG, "Saving event: " + event.toHashMap());
 
         db.document("events/" + eventId)
                 .set(event.toHashMap())
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        Toast.makeText(context, "Event saved successfully!", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Toast.makeText(context, "Failed to save event", Toast.LENGTH_SHORT).show();
-                        Log.e(TAG, "Error saving event", e);
-                    }
+                .addOnSuccessListener(aVoid -> Toast.makeText(context, "Event saved successfully!", Toast.LENGTH_SHORT).show())
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error saving event", e);
+                    Toast.makeText(context, "Failed to save event", Toast.LENGTH_SHORT).show();
                 });
-    }
-
-    private void sendSMSMessages() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SEND_SMS}, SMS_PERMISSION_REQUEST_CODE);
-        } else {
-            sendMessages();
-        }
+        saveContactsToDatabase();
     }
 
     @Override
@@ -349,34 +294,29 @@ public class EventActivity extends AppCompatActivity {
     }
 
     private void sendMessages() {
-        db.document("events/" + eventId)
-                .get()
-                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-                    @Override
-                    public void onSuccess(DocumentSnapshot document) {
-                        event = new Event(document.getId(), document.getString("name"), document.getString("location"), document.getDate("date"), (ArrayList) document.get("contacts"), document.getString("message"));
+        for (ContactListItem contact : contactsList) {
+            try {
+                String message = formatMessage(event.getMessage(), contact.getPrimaryText(), contact.getSecondaryText(), event.getName(), event.getLocation(), event.getDate());
+                sendSMS(contact.getSecondaryText(), message);
+                Log.d(TAG, "SMS sent to: " + contact.getSecondaryText());
+            } catch (Exception e) {
+                Log.e(TAG, "SMS sending failed to: " + contact.getSecondaryText(), e);
+            }
+        }
 
-                        SmsManager smsManager = SmsManager.getDefault();
-                        for (ContactListItem contact : contacts_list) {
-                            try {
-                                String message = formatMessage(event.getMessage(), contact.getPrimaryText(), contact.getSecondaryText(), event.getName(), event.getLocation(), event.getDate());
-                                smsManager.sendTextMessage(contact.getSecondaryText(), null, message, null, null);
-                                Log.d(TAG, "SMS sent to: " + contact.getSecondaryText());
-                            } catch (Exception e) {
-                                Log.e(TAG, "SMS sending failed to: " + contact.getSecondaryText(), e);
-                            }
-                        }
+        Toast.makeText(context, "Messages sent!", Toast.LENGTH_SHORT).show();
+        sendNotification();
+    }
 
-                        Toast.makeText(context, "Messages sent!", Toast.LENGTH_SHORT).show();
-                        sendNotification();
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.e(TAG, "Failed to fetch event", e);
-                    }
-                });
+    private void sendSMS(String phoneNumber, String message) {
+        try {
+            SmsManager smsManager = SmsManager.getDefault();
+            smsManager.sendTextMessage(phoneNumber, null, message, null, null);
+            Toast.makeText(context, "SMS sent successfully!", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(context, "Failed to send SMS.", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private String formatMessage(String messageTemplate, String contactName, String contactPhone, String eventName, String eventLocation, Date eventDate) {
@@ -419,7 +359,7 @@ public class EventActivity extends AppCompatActivity {
     private void sendNotification() {
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -430,6 +370,38 @@ public class EventActivity extends AppCompatActivity {
                 .setAutoCancel(true);
 
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+            return;
+        }
         notificationManager.notify(1, builder.build());
+    }
+}
+
+class SimpleTextWatcher implements TextWatcher {
+
+    private final OnTextChanged onTextChanged;
+
+    public SimpleTextWatcher(OnTextChanged onTextChanged) {
+        this.onTextChanged = onTextChanged;
+    }
+
+    @Override
+    public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+        // No action needed
+    }
+
+    @Override
+    public void onTextChanged(CharSequence s, int start, int before, int count) {
+        onTextChanged.onTextChanged(s.toString());
+    }
+
+    @Override
+    public void afterTextChanged(Editable s) {
+        // No action needed
+    }
+
+    interface OnTextChanged {
+        void onTextChanged(String text);
     }
 }
