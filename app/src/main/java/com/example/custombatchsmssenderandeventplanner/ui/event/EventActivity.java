@@ -137,7 +137,7 @@ public class EventActivity extends AppCompatActivity {
 
                         String selectedDate = formattedD + "/" + formattedM + "/" + selectedYear;
 
-                        event.setDate(convertToDate(selectedDate + " " + ((TextView) findViewById(R.id.text_time)).getText().toString()));
+//                        event.setDate(convertToDate(selectedDate + " " + ((TextView) findViewById(R.id.text_time)).getText().toString().split(" ")[1]));
                         ((TextView) findViewById(R.id.text_date)).setText("Date: " + selectedDate);
                     }
                 },
@@ -150,7 +150,7 @@ public class EventActivity extends AppCompatActivity {
         try {
             return formatter.parse(dateString);
         } catch (ParseException e) {
-            Log.e(TAG, "Date parsing error", e);
+            Log.e("DATE", "Date parsing error " + dateString, e);
             return null;
         }
     }
@@ -169,6 +169,7 @@ public class EventActivity extends AppCompatActivity {
                         String formattedM = String.format("%02d", selectedMinute);
 
                         String selectedTime = formattedH + ":" + formattedM;
+                        Log.d(TAG, "onTimeSet: " + ((TextView) findViewById(R.id.text_date)).getText().toString().replace("Date: ", "") + " " + selectedTime);
                         event.setDate(convertToDate(((TextView) findViewById(R.id.text_date)).getText().toString().replace("Date: ", "") + " " + selectedTime));
 
                         ((TextView) findViewById(R.id.text_time)).setText("Time: " + selectedTime);
