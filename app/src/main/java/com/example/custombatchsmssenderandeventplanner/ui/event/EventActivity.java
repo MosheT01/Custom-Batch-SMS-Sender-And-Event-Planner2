@@ -80,6 +80,15 @@ public class EventActivity extends AppCompatActivity {
         contactsList = new ArrayList<>();
         adapter = new ContactsAdapter(contactsList);
 
+        // Request SMS and Phone State permissions
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED ||
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{
+                    Manifest.permission.SEND_SMS,
+                    Manifest.permission.READ_PHONE_STATE
+            }, SMS_PERMISSION_REQUEST_CODE);
+        }
+
         ((MaterialButton) findViewById(R.id.button_date)).setOnClickListener(v -> showDatePickerDialog());
         ((MaterialButton) findViewById(R.id.button_time)).setOnClickListener(v -> showTimePickerDialog());
         ((RecyclerView) findViewById(R.id.contacts_list)).setLayoutManager(new LinearLayoutManager(this));
@@ -244,6 +253,7 @@ public class EventActivity extends AppCompatActivity {
             return null;
         }
     }
+
     private void saveContactsToDatabase() {
         // Create a list of contacts in the format expected by Firestore
         ArrayList<HashMap<String, String>> contactsToSave = new ArrayList<>();
@@ -267,7 +277,6 @@ public class EventActivity extends AppCompatActivity {
                 });
     }
 
-
     private void saveEvent() {
         Log.d(TAG, "Saving event: " + event.toHashMap());
 
@@ -285,10 +294,10 @@ public class EventActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == SMS_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
                 sendMessages();
             } else {
-                Toast.makeText(this, "SMS permission denied", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "SMS or Phone State permission denied", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -298,9 +307,9 @@ public class EventActivity extends AppCompatActivity {
             try {
                 String message = formatMessage(event.getMessage(), contact.getPrimaryText(), contact.getSecondaryText(), event.getName(), event.getLocation(), event.getDate());
                 sendSMS(contact.getSecondaryText(), message);
-                Log.d(TAG, "SMS sent to: " + contact.getSecondaryText());
+                Log.d(TAG, "LINK_DEBUG: SMS sent to: " + contact.getSecondaryText());
             } catch (Exception e) {
-                Log.e(TAG, "SMS sending failed to: " + contact.getSecondaryText(), e);
+                Log.e(TAG, "LINK_DEBUG: SMS sending failed to: " + contact.getSecondaryText(), e);
             }
         }
 
@@ -311,7 +320,12 @@ public class EventActivity extends AppCompatActivity {
     private void sendSMS(String phoneNumber, String message) {
         try {
             SmsManager smsManager = SmsManager.getDefault();
-            smsManager.sendTextMessage(phoneNumber, null, message, null, null);
+            if (message.length() > 160) {
+                ArrayList<String> messageParts = smsManager.divideMessage(message);
+                smsManager.sendMultipartTextMessage(phoneNumber, null, messageParts, null, null);
+            } else {
+                smsManager.sendTextMessage(phoneNumber, null, message, null, null);
+            }
             Toast.makeText(context, "SMS sent successfully!", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             e.printStackTrace();
@@ -324,7 +338,12 @@ public class EventActivity extends AppCompatActivity {
         String dateTime = dateFormat.format(eventDate);
         String googleCalendarLink = generateGoogleCalendarLink(eventName, eventLocation, eventDate);
 
-        return messageTemplate
+        if (googleCalendarLink == null) {
+            googleCalendarLink = "No link available";
+            Log.d(TAG, "LINK_DEBUG: Google Calendar link is null, setting to default message");
+        }
+
+        String formattedMessage = messageTemplate
                 .replace("{name}", contactName)
                 .replace("{phone}", contactPhone)
                 .replace("{event name}", eventName)
@@ -332,15 +351,25 @@ public class EventActivity extends AppCompatActivity {
                 .replace("{date}", dateTime.split(" ")[0])
                 .replace("{time}", dateTime.split(" ")[1])
                 .replace("{link}", googleCalendarLink);
+
+        Log.d(TAG, "LINK_DEBUG: Formatted message: " + formattedMessage);
+        return formattedMessage;
     }
 
     private String generateGoogleCalendarLink(String eventName, String eventLocation, Date eventDate) {
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'");
-        String formattedDate = dateFormat.format(eventDate);
-        return "https://www.google.com/calendar/render?action=TEMPLATE&text=" + eventName +
-                "&dates=" + formattedDate + "/" + formattedDate +
-                "&details=" + eventName +
-                "&location=" + eventLocation;
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'");
+            String formattedDate = dateFormat.format(eventDate);
+            String link = "https://www.google.com/calendar/render?action=TEMPLATE&text=" + eventName +
+                    "&dates=" + formattedDate + "/" + formattedDate +
+                    "&details=" + eventName +
+                    "&location=" + eventLocation;
+            Log.d(TAG, "LINK_DEBUG: Generated Google Calendar link: " + link);
+            return link;
+        } catch (Exception e) {
+            Log.e(TAG, "LINK_DEBUG: Error generating Google Calendar link", e);
+            return null;
+        }
     }
 
     private void createNotificationChannel() {
