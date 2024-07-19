@@ -64,7 +64,7 @@ public class EventActivity extends AppCompatActivity {
     private MessageViewModel mViewModel;
     private FirebaseFirestore db;
     private ContactsAdapter adapter;
-    private ArrayList<ContactListItem> contactsList;
+    private ArrayList<Contact> contactsList;
     private String eventId;
     private Context context;
     private Event event;
@@ -80,8 +80,7 @@ public class EventActivity extends AppCompatActivity {
         this.eventId = this.getIntent().getStringExtra("id");
         mViewModel = new ViewModelProvider(this).get(MessageViewModel.class);
         db = FirebaseFirestore.getInstance();
-        contactsList = new ArrayList<>();
-        adapter = new ContactsAdapter(contactsList);
+        contactsList = new ArrayList<Contact>();
 
         // Request SMS and Phone State permissions
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED ||
@@ -100,6 +99,7 @@ public class EventActivity extends AppCompatActivity {
         db.document("events/" + eventId).get()
                 .addOnSuccessListener(document -> {
                     event = new Event(document.getId(), document.getString("name"), document.getString("location"), document.getDate("date"), (ArrayList) document.get("contacts"), document.getString("message"));
+                    adapter = new ContactsAdapter(contactsList, event, this);
                     mViewModel.setEventId(new Event(document.getId(), document.getString("name"), "", document.getDate("date"), new ArrayList<>(), document.getString("message")));
 
                     Date date = document.getDate("date");
@@ -110,7 +110,7 @@ public class EventActivity extends AppCompatActivity {
 
                     ArrayList<HashMap<String, String>> contacts = (ArrayList<HashMap<String, String>>) document.get("contacts");
                     for (HashMap<String, String> item : contacts) {
-                        contactsList.add(new ContactListItem(item.get("name"), item.get("phone")));
+                        contactsList.add(new Contact(item.get("name"), item.get("phone")));
                     }
 
                     ((RecyclerView) findViewById(R.id.contacts_list)).setAdapter(adapter);
@@ -182,7 +182,7 @@ public class EventActivity extends AppCompatActivity {
                 .update("contacts", FieldValue.arrayUnion(contact))
                 .addOnSuccessListener(unused -> {
                     Log.d(TAG, "Contact added successfully: " + contact);
-                    contactsList.add(new ContactListItem(contact.get("name").toString(), contact.get("phone").toString()));
+                    contactsList.add(new Contact(contact.get("name").toString(), contact.get("phone").toString()));
                     adapter.notifyDataSetChanged();
                     Toast.makeText(context, "Contact added!", Toast.LENGTH_SHORT).show();
                 })
@@ -260,10 +260,10 @@ public class EventActivity extends AppCompatActivity {
     private void saveContactsToDatabase() {
         // Create a list of contacts in the format expected by Firestore
         ArrayList<HashMap<String, String>> contactsToSave = new ArrayList<>();
-        for (ContactListItem contact : contactsList) {
+        for (Contact contact : contactsList) {
             HashMap<String, String> contactMap = new HashMap<>();
-            contactMap.put("name", contact.getPrimaryText());
-            contactMap.put("phone", contact.getSecondaryText());
+            contactMap.put("name", contact.getName());
+            contactMap.put("phone", contact.getPhone());
             contactsToSave.add(contactMap);
         }
 
@@ -306,13 +306,13 @@ public class EventActivity extends AppCompatActivity {
     }
 
     private void sendMessages() {
-        for (ContactListItem contact : contactsList) {
+        for (Contact contact : contactsList) {
             try {
-                String message = formatMessage(event.getMessage(), contact.getPrimaryText(), contact.getSecondaryText(), event.getName(), event.getLocation(), event.getDate());
-                sendSMS(contact.getSecondaryText(), message);
-                Log.d(TAG, "LINK_DEBUG: SMS sent to: " + contact.getSecondaryText());
+                String message = formatMessage(event.getMessage(), contact.getName(), contact.getPhone(), event.getName(), event.getLocation(), event.getDate());
+                sendSMS(contact.getPhone(), message);
+                Log.d(TAG, "LINK_DEBUG: SMS sent to: " + contact.getPhone());
             } catch (Exception e) {
-                Log.e(TAG, "LINK_DEBUG: SMS sending failed to: " + contact.getSecondaryText(), e);
+                Log.e(TAG, "LINK_DEBUG: SMS sending failed to: " + contact.getPhone(), e);
             }
         }
 
