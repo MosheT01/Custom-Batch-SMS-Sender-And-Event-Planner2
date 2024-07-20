@@ -10,28 +10,16 @@
         android:name="com.example.custombatchsmssenderandeventplanner.ui.event.FirstFragment"
         android:label="@string/first_fragment_label"
         tools:layout="@layout/fragment_first">
-
         <action
             android:id="@+id/action_FirstFragment_to_SecondFragment"
             app:destination="@id/SecondFragment" />
     </fragment>
+
     <fragment
         android:id="@+id/SecondFragment"
         android:name="com.example.custombatchsmssenderandeventplanner.ui.event.SecondFragment"
         android:label="@string/second_fragment_label"
         tools:layout="@layout/fragment_second">
-
-        <action
-            android:id="@+id/action_SecondFragment_to_FirstFragment"
-            app:destination="@id/FirstFragment" />
-    </fragment>
-
-    <fragment
-        android:id="@+id/HomeFragment"
-        android:name="com.example.custombatchsmssenderandeventplanner.ui.home.HomeFragment"
-        android:label="@string/menu_home"
-        tools:layout="@layout/fragment_home">
-
         <action
             android:id="@+id/action_SecondFragment_to_FirstFragment"
             app:destination="@id/FirstFragment" />
@@ -41,12 +29,14 @@
         android:id="@+id/reportFragment"
         android:name="com.example.custombatchsmssenderandeventplanner.ui.Report.ReportFragment"
         android:label="ReportFragment">
-
-        <!-- Your existing actions here -->
-
         <action
             android:id="@+id/action_reportFragment_to_homeFragment"
             app:destination="@+id/HomeFragment" />
     </fragment>
 
+    <fragment
+        android:id="@+id/nav_settings"
+        android:name="com.example.custombatchsmssenderandeventplanner.ui.settings.SettingsFragment"
+        android:label="@string/menu_settings"
+        tools:layout="@layout/fragment_settings" />
 </navigation>

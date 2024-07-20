@@ -1,25 +1,31 @@
 package com.example.custombatchsmssenderandeventplanner.ui.Report;
 
 public class MessageDetails {
+    private String contactName;
     private String phoneNumber;
-    private String message;
-    private boolean isSuccess;
+    private String eventInfo;
+    private boolean isSent;
 
-    public MessageDetails(String phoneNumber, String message, boolean isSuccess) {
+    public MessageDetails(String contactName, String phoneNumber, String eventInfo, boolean isSent) {
+        this.contactName = contactName;
         this.phoneNumber = phoneNumber;
-        this.message = message;
-        this.isSuccess = isSuccess;
+        this.eventInfo = eventInfo;
+        this.isSent = isSent;
+    }
+
+    public String getContactName() {
+        return contactName;
     }
 
     public String getPhoneNumber() {
         return phoneNumber;
     }
 
-    public String getMessage() {
-        return message;
+    public String getEventInfo() {
+        return eventInfo;
     }
 
-    public boolean isSuccess() {
-        return isSuccess;
+    public boolean isSent() {
+        return isSent;
     }
 }

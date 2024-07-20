@@ -10,22 +10,19 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="Contact Name"
-        android:textSize="14sp"/>
+        android:text="Contact Name"/>
 
     <TextView
         android:id="@+id/textViewPhoneNumber"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="Phone Number"
-        android:textSize="14sp"/>
+        android:text="Phone Number"/>
 
     <TextView
         android:id="@+id/textViewEventInfo"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="2"
-        android:text="Event Details"
-        android:textSize="14sp"/>
+        android:text="Event Details"/>
 </LinearLayout>

@@ -1,10 +1,8 @@
-
 package com.example.custombatchsmssenderandeventplanner.ui.Report;
 
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -17,11 +15,9 @@ import java.util.List;
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHolder> {
 
     private List<MessageDetails> messageDetailsList;
-    private OnRetryClickListener retryClickListener;
 
-    public MessageAdapter(List<MessageDetails> messageDetailsList, OnRetryClickListener retryClickListener) {
+    public MessageAdapter(List<MessageDetails> messageDetailsList) {
         this.messageDetailsList = messageDetailsList;
-        this.retryClickListener = retryClickListener;
     }
 
     @NonNull
@@ -35,12 +31,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         MessageDetails messageDetails = messageDetailsList.get(position);
+        holder.textViewContactName.setText(messageDetails.getContactName());
         holder.textViewPhoneNumber.setText(messageDetails.getPhoneNumber());
-        holder.textViewMessage.setText(messageDetails.getMessage());
-        holder.textViewStatus.setText(messageDetails.isSuccess() ? "\tSent" : "Failed");
-
-        holder.buttonRetry.setVisibility(messageDetails.isSuccess() ? View.GONE : View.VISIBLE);
-        holder.buttonRetry.setOnClickListener(v -> retryClickListener.onRetryClick(messageDetails));
+        holder.textViewEventInfo.setText(messageDetails.getEventInfo());
     }
 
     @Override
@@ -49,19 +42,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView textViewPhoneNumber, textViewMessage, textViewStatus;
-        Button buttonRetry;
+        TextView textViewContactName, textViewPhoneNumber, textViewEventInfo;
 
         ViewHolder(View itemView) {
             super(itemView);
+            textViewContactName = itemView.findViewById(R.id.textViewContactName);
             textViewPhoneNumber = itemView.findViewById(R.id.textViewPhoneNumber);
-            textViewMessage = itemView.findViewById(R.id.textViewMessage);
-            textViewStatus = itemView.findViewById(R.id.textViewStatus);
-            buttonRetry = itemView.findViewById(R.id.buttonRetry);
+            textViewEventInfo = itemView.findViewById(R.id.textViewEventInfo);
         }
-    }
-
-    interface OnRetryClickListener {
-        void onRetryClick(MessageDetails messageDetails);
     }
 }

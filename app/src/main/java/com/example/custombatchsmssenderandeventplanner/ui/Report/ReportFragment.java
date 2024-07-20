@@ -1,145 +1,178 @@
 package com.example.custombatchsmssenderandeventplanner.ui.Report;
 
-import android.Manifest;
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.telephony.SmsManager;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
-import androidx.navigation.NavController;
-import androidx.navigation.fragment.NavHostFragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.custombatchsmssenderandeventplanner.R;
-import com.example.custombatchsmssenderandeventplanner.databinding.FragmentReportBinding;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
-import java.util.List;
-import java.util.StringTokenizer;
+import java.util.HashMap;
 
-public class ReportFragment extends Fragment implements MessageAdapter.OnRetryClickListener {
-    private static final int REQUEST_SMS_PERMISSION = 1;
-    private static final String SHARED_PREFS = "sharedPrefs";
-    private static final String PHONE_NUMBER = "phoneNumber";
-    private static final String MESSAGE = "message";
-    private static final String MESSAGE_DETAILS = "messageDetails";
+public class ReportFragment extends Fragment {
 
-    private FragmentReportBinding binding;
-    private List<MessageDetails> messageDetailsList = new ArrayList<>();
-    private MessageAdapter messageAdapter;
+    private static final String TAG = "ReportFragment";
+    private FirebaseFirestore db;
+    private LinearLayout containerLayout;
 
-    public View onCreateView(@NonNull LayoutInflater inflater,
-                             ViewGroup container, Bundle savedInstanceState) {
-        binding = FragmentReportBinding.inflate(inflater, container, false);
-        View root = binding.getRoot();
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        db = FirebaseFirestore.getInstance();
+    }
 
-        RecyclerView recyclerViewMessages = binding.recyclerViewMessages;
-        recyclerViewMessages.setLayoutManager(new LinearLayoutManager(requireContext()));
-        messageAdapter = new MessageAdapter(messageDetailsList, this);
-        recyclerViewMessages.setAdapter(messageAdapter);
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_report, container, false);
+        containerLayout = view.findViewById(R.id.containerLayout);
 
-        SharedPreferences sharedPreferences = requireActivity().getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        loadMessageDetails(sharedPreferences);
+        // Fetch all event data
+        fetchAllEventData();
 
-        String phoneNumber = sharedPreferences.getString(PHONE_NUMBER, "");
-        String message = sharedPreferences.getString(MESSAGE, "");
+        return view;
+    }
 
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.SEND_SMS)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(requireActivity(),
-                    new String[]{Manifest.permission.SEND_SMS},
-                    REQUEST_SMS_PERMISSION);
+    private void fetchAllEventData() {
+        db.collection("events").get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                        if (document.exists()) {
+                            String eventInfo = document.getString("name");
+                            Log.d(TAG, "Fetched event info: " + eventInfo);
+
+                            // Check if eventInfo is null
+                            if (eventInfo == null) {
+                                Log.e(TAG, "Event info is missing in document: " + document.getId());
+                                continue; // Skip this document
+                            }
+
+                            // Get contacts list
+                            ArrayList<HashMap<String, String>> contacts = (ArrayList<HashMap<String, String>>) document.get("contacts");
+                            Log.d(TAG, "Fetched contacts: " + contacts);
+
+                            // Ensure contacts list is not null
+                            if (contacts != null) {
+                                for (HashMap<String, String> contact : contacts) {
+                                    String contactName = contact.get("name");
+                                    String phoneNumber = contact.get("phone");
+                                    String messageSentString = contact.get("messageSent");
+                                    Boolean messageSent = "true".equalsIgnoreCase(messageSentString);
+
+                                    // Check if contactName and phoneNumber are not null
+                                    if (contactName != null && phoneNumber != null) {
+                                        addRowToTable(contactName, phoneNumber, eventInfo, messageSent);
+                                    } else {
+                                        // Handle missing contact data
+                                        Log.e(TAG, "Missing contact data in document: " + document.getId());
+                                    }
+                                }
+                            } else {
+                                // Handle empty contacts list
+                                Log.d(TAG, "No contacts found in document: " + document.getId());
+                            }
+                        } else {
+                            // Handle document not found
+                            Log.d(TAG, "Document not found.");
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    // Handle Firestore errors
+                    Log.e(TAG, "Error fetching data: ", e);
+                });
+    }
+
+    private void addRowToTable(String contactName, String phoneNumber, String eventInfo, Boolean messageSent) {
+        // Inflate the LinearLayout layout
+        LinearLayout linearLayout = (LinearLayout) LayoutInflater.from(getContext())
+                .inflate(R.layout.item_contact_row, null, false);
+
+        // Bind data to the LinearLayout views
+        TextView textViewContactName = linearLayout.findViewById(R.id.textViewContactName);
+        TextView textViewPhoneNumber = linearLayout.findViewById(R.id.textViewPhoneNumber);
+        TextView textViewEventInfo = linearLayout.findViewById(R.id.textViewEventInfo);
+        TextView textViewStatus = linearLayout.findViewById(R.id.textViewStatus);
+//        Button buttonResend = linearLayout.findViewById(R.id.buttonResend);
+
+        // Set text to TextViews
+        textViewContactName.setText(contactName);
+        textViewPhoneNumber.setText(phoneNumber);
+        textViewEventInfo.setText(eventInfo);
+
+        // Set status or show resend button based on messageSent flag
+        textViewStatus.setText("Sent successfully");
+        textViewStatus.setVisibility(View.VISIBLE);
+//        buttonResend.setVisibility(View.GONE);
+//        if (messageSent) {
+//            textViewStatus.setText("Sent successfully");
+//            textViewStatus.setVisibility(View.VISIBLE);
+//            buttonResend.setVisibility(View.GONE);
+//        } else {
+//            textViewStatus.setText("UNSent");
+//            textViewStatus.setVisibility(View.VISIBLE);
+//            buttonResend.setVisibility(View.VISIBLE);
+//            buttonResend.setOnClickListener(v -> resendMessage(contactName, phoneNumber, eventInfo, textViewStatus, buttonResend));
+//        }
+
+        // Set layout parameters to add spacing
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        int rowMargin = getResources().getDimensionPixelSize(R.dimen.row_margin);
+        int columnMargin = getResources().getDimensionPixelSize(R.dimen.column_margin);
+        layoutParams.setMargins(columnMargin, rowMargin, columnMargin, rowMargin);
+        linearLayout.setLayoutParams(layoutParams);
+
+        // Add the LinearLayout to the container layout
+        containerLayout.addView(linearLayout);
+    }
+
+    private void resendMessage(String contactName, String phoneNumber, String eventInfo, TextView textViewStatus, Button buttonResend) {
+        // Logic to resend the message
+        boolean success = contactName != null && phoneNumber != null;
+
+        if (success) {
+            textViewStatus.setText("Sent successfully");
+            textViewStatus.setVisibility(View.VISIBLE);
+            buttonResend.setVisibility(View.GONE);
+            // Optionally update Firestore to indicate the message was sent successfully
+            // db.collection("events").document(eventId).update("contacts", updatedContacts);
         } else {
-            sendSMS(phoneNumber, message);
+            Toast.makeText(getContext(), "Failed to resend message", Toast.LENGTH_SHORT).show();
         }
-
-        return root;
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if (requestCode == REQUEST_SMS_PERMISSION) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                SharedPreferences sharedPreferences = requireActivity().getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-                String phoneNumber = sharedPreferences.getString(PHONE_NUMBER, "");
-                String message = sharedPreferences.getString(MESSAGE, "");
-                sendSMS(phoneNumber, message);
-            } else {
-                Toast.makeText(requireContext(), "Permission denied. SMS cannot be sent.", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private void sendSMS(String phoneNumber, String message) {
-        boolean isSuccess = false;
-        try {
-            SmsManager smsManager = SmsManager.getDefault();
-            smsManager.sendTextMessage(phoneNumber, null, message, null, null);
-            isSuccess = true;
-            Toast.makeText(requireContext(), "SMS sent successfully!", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(requireContext(), "Failed to send SMS.", Toast.LENGTH_SHORT).show();
-        } finally {
-            MessageDetails newMessage = new MessageDetails(phoneNumber, message, isSuccess);
-            messageDetailsList.add(newMessage);
-            saveMessageDetails(requireContext().getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE));
-            messageAdapter.notifyDataSetChanged();
-        }
-    }
-
-    @Override
-    public void onRetryClick(MessageDetails messageDetails) {
-        sendSMS(messageDetails.getPhoneNumber(), messageDetails.getMessage());
-        // Navigate to the Home page
-        NavController navController = NavHostFragment.findNavController(this);
-        navController.navigate(R.id.action_reportFragment_to_homeFragment);
-    }
-
-
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        binding = null;
-    }
-
-    private void loadMessageDetails(SharedPreferences sharedPreferences) {
-        String serializedMessages = sharedPreferences.getString(MESSAGE_DETAILS, "");
-        if (!serializedMessages.isEmpty()) {
-            StringTokenizer tokenizer = new StringTokenizer(serializedMessages, ";");
-            while (tokenizer.hasMoreTokens()) {
-                String[] details = tokenizer.nextToken().split(",");
-                if (details.length == 3) {
-                    String phoneNumber = details[0];
-                    String message = details[1];
-                    boolean isSuccess = Boolean.parseBoolean(details[2]);
-                    messageDetailsList.add(new MessageDetails(phoneNumber, message, isSuccess));
-                }
-            }
-        }
-    }
-
-    private void saveMessageDetails(SharedPreferences sharedPreferences) {
-        StringBuilder serializedMessages = new StringBuilder();
-        for (MessageDetails messageDetails : messageDetailsList) {
-            serializedMessages.append(messageDetails.getPhoneNumber())
-                    .append(",")
-                    .append(messageDetails.getMessage())
-                    .append(",")
-                    .append(messageDetails.isSuccess())
-                    .append(";");
-        }
-        sharedPreferences.edit().putString(MESSAGE_DETAILS, serializedMessages.toString()).apply();
     }
 }
 
+
+
+
+
+//boolean success;
+//        if(contactName == NULL || phoneNumber == NULL){
+//success = false;
+//        }else{
+//success = true;
+//        }
+//        // Set status or show resend button based on messageSent flag
+//        if(success){
+//        textViewStatus.setText("Sent successfully");
+//            textViewStatus.setVisibility(View.VISIBLE);
+//            buttonResend.setVisibility(View.GONE);
+//        } else{
+//                textViewStatus.setText("UNSent");
+//            textViewStatus.setVisibility(View.VISIBLE);
+//            buttonResend.setVisibility(View.GONE);
+//        }
