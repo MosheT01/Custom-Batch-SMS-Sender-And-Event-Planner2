@@ -70,7 +70,16 @@ public class EventsFragment extends Fragment {
             public void onClick(View v) {
                 TextInputLayout name = dialogView.findViewById(R.id.event_name);
                 // Handle the button click event
-                Event ev = new Event("", name.getEditText().getText().toString(), "", new Date(), new ArrayList<>(), "You are invited to {name} event.");
+                Event ev = new Event("", name.getEditText().getText().toString(), "", new Date(), new ArrayList<>(), "hello {name},\n" +
+                        "your phone number is {phone}\n" +
+                        "you are invited to {event name},\n" +
+                        "at this location {location}\n" +
+                        "at this date {date}\n" +
+                        "at this time {time}\n" +
+                        "\n" +
+                        "Add to calendar {link}\n" +
+                        "\n" +
+                        "see you there!");
                 db.collection("events")
                         .add(ev.toHashMap())
                         .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {

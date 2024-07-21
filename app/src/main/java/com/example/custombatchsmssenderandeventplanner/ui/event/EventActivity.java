@@ -9,6 +9,17 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.graphics.Color;
+import android.media.AudioAttributes;
+import android.media.RingtoneManager;
+import android.os.Handler;
+import android.os.Looper;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
@@ -64,7 +75,7 @@ public class EventActivity extends AppCompatActivity {
     private MessageViewModel mViewModel;
     private FirebaseFirestore db;
     private ContactsAdapter adapter;
-    private ArrayList<ContactListItem> contactsList;
+    private ArrayList<Contact> contactsList;
     private String eventId;
     private Context context;
     private Event event;
@@ -80,8 +91,7 @@ public class EventActivity extends AppCompatActivity {
         this.eventId = this.getIntent().getStringExtra("id");
         mViewModel = new ViewModelProvider(this).get(MessageViewModel.class);
         db = FirebaseFirestore.getInstance();
-        contactsList = new ArrayList<>();
-        adapter = new ContactsAdapter(contactsList);
+        contactsList = new ArrayList<Contact>();
 
         // Request SMS and Phone State permissions
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED ||
@@ -100,6 +110,7 @@ public class EventActivity extends AppCompatActivity {
         db.document("events/" + eventId).get()
                 .addOnSuccessListener(document -> {
                     event = new Event(document.getId(), document.getString("name"), document.getString("location"), document.getDate("date"), (ArrayList) document.get("contacts"), document.getString("message"));
+                    adapter = new ContactsAdapter(contactsList, event, this);
                     mViewModel.setEventId(new Event(document.getId(), document.getString("name"), "", document.getDate("date"), new ArrayList<>(), document.getString("message")));
 
                     Date date = document.getDate("date");
@@ -110,7 +121,7 @@ public class EventActivity extends AppCompatActivity {
 
                     ArrayList<HashMap<String, String>> contacts = (ArrayList<HashMap<String, String>>) document.get("contacts");
                     for (HashMap<String, String> item : contacts) {
-                        contactsList.add(new ContactListItem(item.get("name"), item.get("phone")));
+                        contactsList.add(new Contact(item.get("name"), item.get("phone")));
                     }
 
                     ((RecyclerView) findViewById(R.id.contacts_list)).setAdapter(adapter);
@@ -165,8 +176,8 @@ public class EventActivity extends AppCompatActivity {
             String contactPhone = phoneInput.getEditText().getText().toString();
 
             if (contactName.isEmpty() || contactPhone.isEmpty()) {
-                Toast.makeText(context, "Name or phone cannot be empty", Toast.LENGTH_SHORT).show();
-                return;
+                //  Toast.makeText(context, "Name or phone cannot be empty", Toast.LENGTH_SHORT).show();
+                // return;
             }
 
             HashMap<String, Object> contact = new HashMap<>();
@@ -182,7 +193,7 @@ public class EventActivity extends AppCompatActivity {
                 .update("contacts", FieldValue.arrayUnion(contact))
                 .addOnSuccessListener(unused -> {
                     Log.d(TAG, "Contact added successfully: " + contact);
-                    contactsList.add(new ContactListItem(contact.get("name").toString(), contact.get("phone").toString()));
+                    contactsList.add(new Contact(contact.get("name").toString(), contact.get("phone").toString()));
                     adapter.notifyDataSetChanged();
                     Toast.makeText(context, "Contact added!", Toast.LENGTH_SHORT).show();
                 })
@@ -260,10 +271,10 @@ public class EventActivity extends AppCompatActivity {
     private void saveContactsToDatabase() {
         // Create a list of contacts in the format expected by Firestore
         ArrayList<HashMap<String, String>> contactsToSave = new ArrayList<>();
-        for (ContactListItem contact : contactsList) {
+        for (Contact contact : contactsList) {
             HashMap<String, String> contactMap = new HashMap<>();
-            contactMap.put("name", contact.getPrimaryText());
-            contactMap.put("phone", contact.getSecondaryText());
+            contactMap.put("name", contact.getName());
+            contactMap.put("phone", contact.getPhone());
             contactsToSave.add(contactMap);
         }
 
@@ -305,19 +316,118 @@ public class EventActivity extends AppCompatActivity {
         }
     }
 
-    private void sendMessages() {
-        for (ContactListItem contact : contactsList) {
-            try {
-                String message = formatMessage(event.getMessage(), contact.getPrimaryText(), contact.getSecondaryText(), event.getName(), event.getLocation(), event.getDate());
-                sendSMS(contact.getSecondaryText(), message);
-                Log.d(TAG, "LINK_DEBUG: SMS sent to: " + contact.getSecondaryText());
-            } catch (Exception e) {
-                Log.e(TAG, "LINK_DEBUG: SMS sending failed to: " + contact.getSecondaryText(), e);
-            }
+    public void sendMessages() {
+        ExecutorService executor = Executors.newFixedThreadPool(contactsList.size());
+        Handler mainHandler = new Handler(Looper.getMainLooper());
+
+        // Use a thread-safe list to collect results
+        List<String> results = Collections.synchronizedList(new ArrayList<>());
+
+        for (Contact contact : contactsList) {
+            executor.submit(() -> {
+                try {
+                    List<String> failureReasons = new ArrayList<>();
+
+                    if (!isValidContact(contact)) {
+                        failureReasons.add("Invalid contact details: make sure the phone number only contains numbers and {+,-}");
+                    }
+                    if (!isValidMessage(event.getMessage(), contact, event)) {
+                        failureReasons.add("Invalid message placeholders: make sure that all the fields that are used for placeholders are filled.");
+                    }
+
+                    if (failureReasons.isEmpty()) {
+                        String message = formatMessage(event.getMessage(), contact.getName(), contact.getPhone(), event.getName(), event.getLocation(), event.getDate());
+                        sendSMS(contact.getPhone(), message);
+                        Log.d(TAG, "LINK_DEBUG: SMS sent to: " + contact.getPhone());
+                        results.add("SMS sent to: " + contact.getPhone());
+
+                        // Update Firestore to indicate the message was sent successfully
+                        updateContactMessageStatus(contact, true, "");
+                    } else {
+                        String failureReason = String.join(", ", failureReasons);
+                        Log.e(TAG, "LINK_DEBUG: " + failureReason + " for: " + contact.getPhone());
+                        results.add("SMS sending failed (" + failureReason + ") to: " + contact.getPhone());
+
+                        // Update Firestore to indicate the message failed
+                        updateContactMessageStatus(contact, false, failureReason);
+                    }
+                } catch (Exception e) {
+                    String failureReason = "SMS sending failed due to exception: " + e.getMessage();
+                    Log.e(TAG, "LINK_DEBUG: SMS sending failed to: " + contact.getPhone(), e);
+                    results.add("SMS sending failed to: " + contact.getPhone());
+
+                    // Update Firestore to indicate the message failed
+                    updateContactMessageStatus(contact, false, failureReason);
+                }
+            });
         }
 
-        Toast.makeText(context, "Messages sent!", Toast.LENGTH_SHORT).show();
-        sendNotification();
+        executor.shutdown();
+        while (!executor.isTerminated()) {
+            // Wait for all tasks to finish
+        }
+
+        // Show Toast messages and send notification on the main thread after all tasks are done
+        mainHandler.post(() -> {
+            for (String result : results) {
+                // Toast.makeText(context, result, Toast.LENGTH_SHORT).show();
+            }
+            Toast.makeText(context, "Messages sent See Notification For Report!", Toast.LENGTH_SHORT).show();
+            sendNotification(results);
+        });
+    }
+
+    private void updateContactMessageStatus(Contact contact, boolean messageSent, String failureReason) {
+        HashMap<String, Object> updatedContact = new HashMap<>();
+        updatedContact.put("name", contact.getName());
+        updatedContact.put("phone", contact.getPhone());
+        updatedContact.put("messageSent", messageSent);
+        updatedContact.put("failureReason", failureReason);
+
+        db.document("events/" + eventId)
+                .update("contacts", FieldValue.arrayRemove(contact.toHashMap()))
+                .addOnSuccessListener(aVoid -> db.document("events/" + eventId)
+                        .update("contacts", FieldValue.arrayUnion(updatedContact)))
+                .addOnFailureListener(e -> Log.e(TAG, "Failed to update contact message status", e));
+    }
+
+
+
+    private boolean isValidContact(Contact contact) {
+        // Check if the contact name is empty
+        if (contact.getName().isEmpty()) {
+            return false;
+        }
+
+        // Check if the phone number contains only valid characters
+        if (!contact.getPhone().matches("[+]?[0-9-]+")) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean isValidMessage(String messageTemplate, Contact contact, Event event) {
+        // Check if message contains required placeholders and valid replacements
+        if (messageTemplate.contains("{name}") && contact.getName().isEmpty()) {
+            return false;
+        }
+        if (messageTemplate.contains("{phone}") && contact.getPhone().isEmpty()) {
+            return false;
+        }
+        if (messageTemplate.contains("{event name}") && event.getName().isEmpty()) {
+            return false;
+        }
+        if (messageTemplate.contains("{location}") && event.getLocation().isEmpty()) {
+            return false;
+        }
+        if (messageTemplate.contains("{date}") && event.getDate() == null) {
+            return false;
+        }
+        if (messageTemplate.contains("{time}") && event.getDate() == null) { // Assuming date and time are from the same field
+            return false;
+        }
+        return true;
     }
 
     private void sendSMS(String phoneNumber, String message) {
@@ -329,10 +439,8 @@ public class EventActivity extends AppCompatActivity {
             } else {
                 smsManager.sendTextMessage(phoneNumber, null, message, null, null);
             }
-            Toast.makeText(context, "SMS sent successfully!", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             e.printStackTrace();
-            Toast.makeText(context, "Failed to send SMS.", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -358,6 +466,7 @@ public class EventActivity extends AppCompatActivity {
         Log.d(TAG, "LINK_DEBUG: Formatted message: " + formattedMessage);
         return formattedMessage;
     }
+
     private String generateGoogleCalendarLink(String eventName, String eventLocation, Date eventDate) {
         try {
             // Set up the date format in UTC
@@ -386,33 +495,52 @@ public class EventActivity extends AppCompatActivity {
             return null;
         }
     }
-
-
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             CharSequence name = "Messages Sent";
             String description = "Notification when messages are sent";
-            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            int importance = NotificationManager.IMPORTANCE_HIGH; // Set high importance for heads-up notification
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
             channel.setDescription(description);
+            channel.enableLights(true);
+            channel.setLightColor(Color.RED); // Set light color
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 1000, 500, 1000}); // Custom vibration pattern
+            channel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()); // Set custom sound
 
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
             notificationManager.createNotificationChannel(channel);
         }
     }
-
-    private void sendNotification() {
+    private void sendNotification(List<String> results) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+
+        // Pass the necessary extras to navigate to the report fragment
+        intent.putExtra("navigateToReport", true);
+        intent.putStringArrayListExtra("reportResults", new ArrayList<>(results));
+
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+
+        boolean allMessagesSentSuccessfully = results.stream().allMatch(result -> result.startsWith("SMS sent to"));
+
+        String notificationTitle = "Messages Sent";
+        String notificationContent = allMessagesSentSuccessfully ? "All messages sent successfully."
+                : "One or more messages failed. See the report for details.";
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setContentTitle("Messages Sent")
-                .setContentText("All messages have been sent.")
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentTitle(notificationTitle)
+                .setContentText(notificationContent)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(notificationContent))
+                .setPriority(NotificationCompat.PRIORITY_HIGH) // Set high priority for heads-up notification
                 .setContentIntent(pendingIntent)
-                .setAutoCancel(true);
+                .setAutoCancel(true)
+                .setDefaults(NotificationCompat.DEFAULT_ALL) // Set default sound, vibration, and lights
+                .setFullScreenIntent(pendingIntent, true); // Enable heads-up notification
 
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {

@@ -3,17 +3,21 @@ package com.example.custombatchsmssenderandeventplanner.ui.Report;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
+import java.util.List;
 
 public class ReportViewModel extends ViewModel {
- 
-    private final MutableLiveData<String> reportText;
+
+    private final MutableLiveData<List<MessageDetails>> messageDetails;
 
     public ReportViewModel() {
-        reportText = new MutableLiveData<>();
-        reportText.setValue("This is report fragment1");
+        messageDetails = new MutableLiveData<>();
     }
 
-    public LiveData<String> getText() {
-        return reportText;
+    public LiveData<List<MessageDetails>> getMessageDetails() {
+        return messageDetails;
+    }
+
+    public void setMessageDetails(List<MessageDetails> details) {
+        messageDetails.setValue(details);
     }
 }

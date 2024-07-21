@@ -41,4 +41,12 @@ public class Contact {
     public Map<String, String> getCustomFields() {
         return customFields;
     }
+
+    public Map toHashMap() {
+        HashMap hm = new HashMap();
+        hm.put("name", this.name);
+        hm.put("phone", this.phone);
+
+        return hm;
+    }
 }
