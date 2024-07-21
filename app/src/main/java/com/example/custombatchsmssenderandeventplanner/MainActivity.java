@@ -53,10 +53,6 @@ public class MainActivity extends AppCompatActivity {
         NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
         NavigationUI.setupWithNavController(navigationView, navController);
 
-        // Handle intent to navigate to the report screen
-        if (getIntent().getBooleanExtra("navigateToReport", false)) {
-            navController.navigate(R.id.nav_report);
-        }
     }
 
     private void loadDarkModePreference() {
