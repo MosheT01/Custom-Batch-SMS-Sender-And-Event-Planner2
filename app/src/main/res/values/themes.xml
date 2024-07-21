@@ -21,5 +21,9 @@
 
     <style name="Theme.CustomBatchSMSSenderAndEventPlanner.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
 
+    <style name="MenuItemTextStyle">
+        <item name="android:textColor">@color/menu_text_color</item>
+    </style>
+
     <style name="Theme.CustomBatchSMSSenderAndEventPlanner.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
 </resources>
