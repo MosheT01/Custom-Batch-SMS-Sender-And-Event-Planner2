@@ -94,6 +94,25 @@ public class EventsAdapter extends RecyclerView.Adapter<EventsAdapter.ViewHolder
         });
     }
 
+    public void deleteEventById(String eventId, int position) {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.document("events/" + eventId)
+                .delete()
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void unused) {
+                        mData.remove(position);
+                        notifyDataSetChanged();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.e("EventsAdapter", "Failed to delete event", e);
+                    }
+                });
+    }
+
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
