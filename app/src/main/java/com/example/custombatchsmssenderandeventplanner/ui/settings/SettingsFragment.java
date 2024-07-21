@@ -15,11 +15,8 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.fragment.app.Fragment;
 
 import com.example.custombatchsmssenderandeventplanner.R;
-import com.example.custombatchsmssenderandeventplanner.ui.events.EventsAdapter;
 import com.google.firebase.firestore.FirebaseFirestore;
-
-import java.util.ArrayList;
-import java.util.List;
+import com.google.firebase.firestore.WriteBatch;
 
 public class SettingsFragment extends Fragment {
 
@@ -66,15 +63,12 @@ public class SettingsFragment extends Fragment {
         db.collection("events")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
-                    List<String> eventIds = new ArrayList<>();
-                    queryDocumentSnapshots.forEach(document -> eventIds.add(document.getId()));
+                    WriteBatch batch = db.batch();
+                    queryDocumentSnapshots.forEach(document -> batch.delete(document.getReference()));
 
-                    EventsAdapter adapter = new EventsAdapter(new ArrayList<>(), getActivity());
-                    for (int i = 0; i < eventIds.size(); i++) {
-                        adapter.deleteEventById(eventIds.get(i), i);
-                    }
-
-                    Toast.makeText(getActivity(), "Database cleared.", Toast.LENGTH_SHORT).show();
+                    batch.commit()
+                            .addOnSuccessListener(aVoid -> Toast.makeText(getActivity(), "Database cleared.", Toast.LENGTH_SHORT).show())
+                            .addOnFailureListener(e -> Toast.makeText(getActivity(), "Failed to clear database.", Toast.LENGTH_SHORT).show());
                 })
                 .addOnFailureListener(e -> Toast.makeText(getActivity(), "Failed to retrieve events.", Toast.LENGTH_SHORT).show());
     }

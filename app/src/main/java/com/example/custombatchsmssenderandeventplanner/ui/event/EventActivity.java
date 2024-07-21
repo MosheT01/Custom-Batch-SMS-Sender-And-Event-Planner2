@@ -317,6 +317,10 @@ public class EventActivity extends AppCompatActivity {
     }
 
     public void sendMessages() {
+        if(contactsList.isEmpty()){
+            Toast.makeText(this, "Contact List Cant Be Empty", Toast.LENGTH_SHORT).show();
+            return;
+        }
         ExecutorService executor = Executors.newFixedThreadPool(contactsList.size());
         Handler mainHandler = new Handler(Looper.getMainLooper());
 
