@@ -8,6 +8,14 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import android.os.Handler;
+import android.os.Looper;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 
 import android.Manifest;
 import android.app.AlertDialog;
@@ -33,6 +41,9 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 
 import com.example.custombatchsmssenderandeventplanner.MainActivity;
 import com.example.custombatchsmssenderandeventplanner.R;
@@ -305,19 +316,42 @@ public class EventActivity extends AppCompatActivity {
         }
     }
 
-    private void sendMessages() {
+
+
+    public void sendMessages() {
+        ExecutorService executor = Executors.newFixedThreadPool(contactsList.size());
+        Handler mainHandler = new Handler(Looper.getMainLooper());
+
+        // Use a thread-safe list to collect results
+        List<String> results = Collections.synchronizedList(new ArrayList<>());
+
         for (Contact contact : contactsList) {
-            try {
-                String message = formatMessage(event.getMessage(), contact.getName(), contact.getPhone(), event.getName(), event.getLocation(), event.getDate());
-                sendSMS(contact.getPhone(), message);
-                Log.d(TAG, "LINK_DEBUG: SMS sent to: " + contact.getPhone());
-            } catch (Exception e) {
-                Log.e(TAG, "LINK_DEBUG: SMS sending failed to: " + contact.getPhone(), e);
-            }
+            executor.submit(() -> {
+                try {
+                    String message = formatMessage(event.getMessage(), contact.getName(), contact.getPhone(), event.getName(), event.getLocation(), event.getDate());
+                    sendSMS(contact.getPhone(), message);  // No Toast in sendSMS
+                    Log.d(TAG, "LINK_DEBUG: SMS sent to: " + contact.getPhone());
+                    results.add("SMS sent to: " + contact.getPhone());
+                } catch (Exception e) {
+                    Log.e(TAG, "LINK_DEBUG: SMS sending failed to: " + contact.getPhone(), e);
+                    results.add("SMS sending failed to: " + contact.getPhone());
+                }
+            });
         }
 
-        Toast.makeText(context, "Messages sent!", Toast.LENGTH_SHORT).show();
-        sendNotification();
+        executor.shutdown();
+        while (!executor.isTerminated()) {
+            // Wait for all tasks to finish
+        }
+
+        // Show Toast messages and send notification on the main thread after all tasks are done
+        mainHandler.post(() -> {
+            for (String result : results) {
+                Toast.makeText(context, result, Toast.LENGTH_SHORT).show();
+            }
+            Toast.makeText(context, "Messages sent!", Toast.LENGTH_SHORT).show();
+            sendNotification(results);
+        });
     }
 
     private void sendSMS(String phoneNumber, String message) {
@@ -329,10 +363,8 @@ public class EventActivity extends AppCompatActivity {
             } else {
                 smsManager.sendTextMessage(phoneNumber, null, message, null, null);
             }
-            Toast.makeText(context, "SMS sent successfully!", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             e.printStackTrace();
-            Toast.makeText(context, "Failed to send SMS.", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -401,15 +433,25 @@ public class EventActivity extends AppCompatActivity {
         }
     }
 
-    private void sendNotification() {
-        Intent intent = new Intent(this, MainActivity.class);
+    private void sendNotification(List<String> results) {
+        Intent intent = new Intent(this, EventActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+
+        // Pass the event ID to the EventActivity
+        intent.putExtra("id", eventId);
+
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+
+        StringBuilder notificationContent = new StringBuilder("All messages have been sent.\n");
+        for (String result : results) {
+            notificationContent.append(result).append("\n");
+        }
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle("Messages Sent")
-                .setContentText("All messages have been sent.")
+                .setContentText(notificationContent.toString())
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(notificationContent.toString()))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
@@ -422,6 +464,7 @@ public class EventActivity extends AppCompatActivity {
         notificationManager.notify(1, builder.build());
     }
 }
+
 
 class SimpleTextWatcher implements TextWatcher {
 
