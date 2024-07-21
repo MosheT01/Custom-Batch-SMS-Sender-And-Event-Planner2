@@ -9,8 +9,7 @@
         android:id="@+id/textViewContactName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Contact Name"
-        android:textStyle="bold" />
+        android:text="Contact Name" />
 
     <TextView
         android:id="@+id/textViewPhoneNumber"
@@ -25,17 +24,17 @@
         android:text="Status" />
 
     <LinearLayout
+        android:id="@+id/layoutFailure"
+        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:visibility="gone"
-        android:id="@+id/layoutFailure">
+        android:paddingTop="8dp">
 
         <TextView
             android:id="@+id/textViewFailureReason"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="Failure Reason" />
 
         <Button

@@ -184,7 +184,6 @@ public class ReportFragment extends Fragment {
 
             textViewContactName.setText(contactName);
             textViewPhoneNumber.setText(phoneNumber);
-            textViewStatus.setText(eventList.get(groupPosition));
 
             if (messageSent != null && messageSent) {
                 textViewStatus.setText("Sent successfully");
@@ -210,7 +209,6 @@ public class ReportFragment extends Fragment {
 
         private void resendMessage(Map<String, Object> contact) {
             // Implement the logic to resend the message here
-            // For example, update the Firestore document or send the message through an API
             Log.d(TAG, "Resending message to: " + contact.get("phone"));
             // After resending, you might want to update the UI to reflect the new status
         }

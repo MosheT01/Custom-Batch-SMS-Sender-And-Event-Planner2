@@ -326,28 +326,38 @@ public class EventActivity extends AppCompatActivity {
         for (Contact contact : contactsList) {
             executor.submit(() -> {
                 try {
-                    // Validate the contact details and message placeholders
-                    if (isValidContact(contact) && isValidMessage(event.getMessage(), contact, event)) {
+                    List<String> failureReasons = new ArrayList<>();
+
+                    if (!isValidContact(contact)) {
+                        failureReasons.add("Invalid contact details: make sure the phone number only contains numbers and {+,-}");
+                    }
+                    if (!isValidMessage(event.getMessage(), contact, event)) {
+                        failureReasons.add("Invalid message placeholders: make sure that all the fields that are used for placeholders are filled.");
+                    }
+
+                    if (failureReasons.isEmpty()) {
                         String message = formatMessage(event.getMessage(), contact.getName(), contact.getPhone(), event.getName(), event.getLocation(), event.getDate());
                         sendSMS(contact.getPhone(), message);
                         Log.d(TAG, "LINK_DEBUG: SMS sent to: " + contact.getPhone());
                         results.add("SMS sent to: " + contact.getPhone());
 
                         // Update Firestore to indicate the message was sent successfully
-                        updateContactMessageStatus(contact, true);
+                        updateContactMessageStatus(contact, true, "");
                     } else {
-                        Log.e(TAG, "LINK_DEBUG: Invalid contact details or message placeholders for: " + contact.getPhone());
-                        results.add("SMS sending failed (invalid contact details or placeholders) to: " + contact.getPhone());
+                        String failureReason = String.join(", ", failureReasons);
+                        Log.e(TAG, "LINK_DEBUG: " + failureReason + " for: " + contact.getPhone());
+                        results.add("SMS sending failed (" + failureReason + ") to: " + contact.getPhone());
 
                         // Update Firestore to indicate the message failed
-                        updateContactMessageStatus(contact, false);
+                        updateContactMessageStatus(contact, false, failureReason);
                     }
                 } catch (Exception e) {
+                    String failureReason = "SMS sending failed due to exception: " + e.getMessage();
                     Log.e(TAG, "LINK_DEBUG: SMS sending failed to: " + contact.getPhone(), e);
                     results.add("SMS sending failed to: " + contact.getPhone());
 
                     // Update Firestore to indicate the message failed
-                    updateContactMessageStatus(contact, false);
+                    updateContactMessageStatus(contact, false, failureReason);
                 }
             });
         }
@@ -367,11 +377,12 @@ public class EventActivity extends AppCompatActivity {
         });
     }
 
-    private void updateContactMessageStatus(Contact contact, boolean messageSent) {
+    private void updateContactMessageStatus(Contact contact, boolean messageSent, String failureReason) {
         HashMap<String, Object> updatedContact = new HashMap<>();
         updatedContact.put("name", contact.getName());
         updatedContact.put("phone", contact.getPhone());
         updatedContact.put("messageSent", messageSent);
+        updatedContact.put("failureReason", failureReason);
 
         db.document("events/" + eventId)
                 .update("contacts", FieldValue.arrayRemove(contact.toHashMap()))
@@ -379,6 +390,7 @@ public class EventActivity extends AppCompatActivity {
                         .update("contacts", FieldValue.arrayUnion(updatedContact)))
                 .addOnFailureListener(e -> Log.e(TAG, "Failed to update contact message status", e));
     }
+
 
 
     private boolean isValidContact(Contact contact) {
@@ -400,7 +412,7 @@ public class EventActivity extends AppCompatActivity {
         if (messageTemplate.contains("{name}") && contact.getName().isEmpty()) {
             return false;
         }
-        if (messageTemplate.contains("{phone}") && !contact.getPhone().matches("[+]?[0-9-]+")) {
+        if (messageTemplate.contains("{phone}") && contact.getPhone().isEmpty()) {
             return false;
         }
         if (messageTemplate.contains("{event name}") && event.getName().isEmpty()) {
