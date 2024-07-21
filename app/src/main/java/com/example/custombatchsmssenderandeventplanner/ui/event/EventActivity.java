@@ -519,6 +519,7 @@ public class EventActivity extends AppCompatActivity {
             notificationManager.createNotificationChannel(channel);
         }
     }
+
     private void sendNotification(List<String> results) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -553,6 +554,7 @@ public class EventActivity extends AppCompatActivity {
         }
         notificationManager.notify(1, builder.build());
     }
+
 }
 
 class SimpleTextWatcher implements TextWatcher {
