@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
@@ -45,9 +44,6 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 
 import com.example.custombatchsmssenderandeventplanner.MainActivity;
 import com.example.custombatchsmssenderandeventplanner.R;
@@ -180,7 +176,7 @@ public class EventActivity extends AppCompatActivity {
             String contactPhone = phoneInput.getEditText().getText().toString();
 
             if (contactName.isEmpty() || contactPhone.isEmpty()) {
-              //  Toast.makeText(context, "Name or phone cannot be empty", Toast.LENGTH_SHORT).show();
+                //  Toast.makeText(context, "Name or phone cannot be empty", Toast.LENGTH_SHORT).show();
                 // return;
             }
 
@@ -374,7 +370,7 @@ public class EventActivity extends AppCompatActivity {
         // Show Toast messages and send notification on the main thread after all tasks are done
         mainHandler.post(() -> {
             for (String result : results) {
-               // Toast.makeText(context, result, Toast.LENGTH_SHORT).show();
+                // Toast.makeText(context, result, Toast.LENGTH_SHORT).show();
             }
             Toast.makeText(context, "Messages sent See Notification For Report!", Toast.LENGTH_SHORT).show();
             sendNotification(results);
@@ -553,8 +549,6 @@ public class EventActivity extends AppCompatActivity {
         }
         notificationManager.notify(1, builder.build());
     }
-
-
 }
 
 class SimpleTextWatcher implements TextWatcher {

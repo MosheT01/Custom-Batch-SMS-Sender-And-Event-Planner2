@@ -1,17 +1,19 @@
 package com.example.custombatchsmssenderandeventplanner.ui.event;
 
-
 import static androidx.core.content.ContextCompat.startActivity;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.custombatchsmssenderandeventplanner.R;
@@ -55,9 +57,12 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.ViewHo
 
         holder.btnCall.setOnClickListener(e -> {
             String phoneToCall = mData.get(position).getPhone();
-            // call
             Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + phoneToCall));
-            startActivity(activity, intent, null);
+            if (ActivityCompat.checkSelfPermission(activity, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.CALL_PHONE}, 1);
+            } else {
+                startActivity(activity, intent, null);
+            }
         });
     }
 
@@ -81,79 +86,45 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.ViewHo
     }
 
     private void showCustomDialog(int position) {
-        // Create an AlertDialog builder
         AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-        // Inflate the custom layout
-        LayoutInflater inflater2 = activity.getLayoutInflater();
-        View dialogView = inflater2.inflate(R.layout.yes_no_dialog, null);
+        LayoutInflater inflater = activity.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.yes_no_dialog, null);
         builder.setView(dialogView);
 
-        // Set up the dialog's button click event
         MaterialButton yesButton = dialogView.findViewById(R.id.btnYes);
         MaterialButton noButton = dialogView.findViewById(R.id.btnNo);
 
-        // Create and show the dialog
         AlertDialog alertDialog = builder.create();
         alertDialog.show();
 
-        noButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                alertDialog.dismiss();
-            }
-        });
+        noButton.setOnClickListener(view -> alertDialog.dismiss());
 
-        yesButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                FirebaseFirestore db = FirebaseFirestore.getInstance();
-
-                db.document("events/" + event.getId())
-                        .update("contacts", FieldValue.arrayRemove(mData.get(position).toHashMap()))
-                        .addOnSuccessListener(new OnSuccessListener<Void>() {
-                            @Override
-                            public void onSuccess(Void unused) {
-                                mData.remove(position);
-                                notifyDataSetChanged();
-                            }
-                        });
-
-//                TextInputEditText dialogInput = dialogView.findViewById(R.id.event_name);
-//                    String inputText = dialogInput.getText().toString();
-//                    Toast.makeText(getContext(), inputText, Toast.LENGTH_LONG);
-//                    // Do something with the inputText
-                // Close the dialog
-
-
-                alertDialog.dismiss();
-            }
+        yesButton.setOnClickListener(v -> {
+            FirebaseFirestore db = FirebaseFirestore.getInstance();
+            db.document("events/" + event.getId())
+                    .update("contacts", FieldValue.arrayRemove(mData.get(position).toHashMap()))
+                    .addOnSuccessListener(unused -> {
+                        mData.remove(position);
+                        notifyDataSetChanged();
+                    });
+            alertDialog.dismiss();
         });
     }
+
     private void showPreviewDialog(int position) {
-        // Create an AlertDialog builder
         AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-        // Inflate the custom layout
-        LayoutInflater inflater2 = activity.getLayoutInflater();
-        View dialogView = inflater2.inflate(R.layout.dialog_preview, null);
+        LayoutInflater inflater = activity.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_preview, null);
         builder.setView(dialogView);
 
-        // Set up the dialog's button click event
         MaterialButton closeButton = dialogView.findViewById(R.id.btnClose);
         TextView text1 = dialogView.findViewById(R.id.text1);
 
-        // Create and show the dialog
         AlertDialog alertDialog = builder.create();
         alertDialog.show();
 
-        closeButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                alertDialog.dismiss();
-            }
-        });
+        closeButton.setOnClickListener(view -> alertDialog.dismiss());
 
         text1.setText(event.formatMessage(mData.get(position)));
     }
-
 }
