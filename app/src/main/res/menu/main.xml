@@ -2,7 +2,18 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
+        android:id="@+id/action_about"
+        android:orderInCategory="100"
+        android:title="@string/action_about"
+        android:textAppearance="@style/MenuItemTextStyle"/>
+    <item
         android:id="@+id/action_settings"
         android:orderInCategory="100"
-        android:title="@string/action_setting" />
+        android:title="@string/action_settings"
+        android:textAppearance="@style/MenuItemTextStyle" />
+    <item
+        android:id="@+id/action_exit"
+        android:orderInCategory="100"
+        android:title="@string/action_exit"
+        android:textAppearance="@style/MenuItemTextStyle"/>
 </menu>
