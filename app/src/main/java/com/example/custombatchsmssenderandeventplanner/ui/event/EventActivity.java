@@ -8,6 +8,10 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import android.graphics.Color;
+import android.media.AudioAttributes;
+import android.media.RingtoneManager;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -370,9 +374,9 @@ public class EventActivity extends AppCompatActivity {
         // Show Toast messages and send notification on the main thread after all tasks are done
         mainHandler.post(() -> {
             for (String result : results) {
-                Toast.makeText(context, result, Toast.LENGTH_SHORT).show();
+               // Toast.makeText(context, result, Toast.LENGTH_SHORT).show();
             }
-            Toast.makeText(context, "Messages sent!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "Messages sent See Notification For Report!", Toast.LENGTH_SHORT).show();
             sendNotification(results);
         });
     }
@@ -495,20 +499,26 @@ public class EventActivity extends AppCompatActivity {
             return null;
         }
     }
-
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             CharSequence name = "Messages Sent";
             String description = "Notification when messages are sent";
-            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            int importance = NotificationManager.IMPORTANCE_HIGH; // Set high importance for heads-up notification
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
             channel.setDescription(description);
+            channel.enableLights(true);
+            channel.setLightColor(Color.RED); // Set light color
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 1000, 500, 1000}); // Custom vibration pattern
+            channel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()); // Set custom sound
 
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
             notificationManager.createNotificationChannel(channel);
         }
     }
-
     private void sendNotification(List<String> results) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -530,9 +540,11 @@ public class EventActivity extends AppCompatActivity {
                 .setContentTitle(notificationTitle)
                 .setContentText(notificationContent)
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(notificationContent))
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setPriority(NotificationCompat.PRIORITY_HIGH) // Set high priority for heads-up notification
                 .setContentIntent(pendingIntent)
-                .setAutoCancel(true);
+                .setAutoCancel(true)
+                .setDefaults(NotificationCompat.DEFAULT_ALL) // Set default sound, vibration, and lights
+                .setFullScreenIntent(pendingIntent, true); // Enable heads-up notification
 
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -541,6 +553,7 @@ public class EventActivity extends AppCompatActivity {
         }
         notificationManager.notify(1, builder.build());
     }
+
 
 }
 

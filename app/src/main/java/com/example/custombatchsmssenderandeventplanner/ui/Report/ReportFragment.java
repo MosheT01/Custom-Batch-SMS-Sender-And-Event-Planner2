@@ -1,5 +1,6 @@
 package com.example.custombatchsmssenderandeventplanner.ui.Report;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -10,11 +11,13 @@ import android.widget.Button;
 import android.widget.ExpandableListView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 
 import com.example.custombatchsmssenderandeventplanner.R;
+import com.example.custombatchsmssenderandeventplanner.ui.event.EventActivity;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -59,6 +62,7 @@ public class ReportFragment extends Fragment {
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         if (document.exists()) {
+                            String eventId = document.getId();
                             String eventInfo = document.getString("name");
                             Log.d(TAG, "Fetched event info: " + eventInfo);
 
@@ -77,7 +81,10 @@ public class ReportFragment extends Fragment {
                             // Ensure contacts list is not null and convert to List<Map<String, Object>>
                             List<Map<String, Object>> contactList = new ArrayList<>();
                             if (contacts != null) {
-                                contactList.addAll(contacts);
+                                for (HashMap<String, Object> contact : contacts) {
+                                    contact.put("eventId", eventId); // Add eventId to each contact for navigation
+                                    contactList.add(contact);
+                                }
                             }
 
                             eventContactsMap.put(eventInfo, contactList);
@@ -166,6 +173,7 @@ public class ReportFragment extends Fragment {
 
             String contactName = (String) contact.get("name");
             String phoneNumber = (String) contact.get("phone");
+            String eventId = (String) contact.get("eventId");
             Boolean messageSent = false;
             String failureReason = "";
 
@@ -194,8 +202,7 @@ public class ReportFragment extends Fragment {
                 textViewFailureReason.setText(failureReason);
 
                 buttonResend.setOnClickListener(v -> {
-                    // Implement resend logic here
-                    resendMessage(contact);
+                    navigateToEvent(eventId);
                 });
             }
 
@@ -207,10 +214,15 @@ public class ReportFragment extends Fragment {
             return true;
         }
 
-        private void resendMessage(Map<String, Object> contact) {
-            // Implement the logic to resend the message here
-            Log.d(TAG, "Resending message to: " + contact.get("phone"));
-            // After resending, you might want to update the UI to reflect the new status
+        private void navigateToEvent(String eventId) {
+            // Create an intent to navigate to EventActivity
+            Intent intent = new Intent(getActivity(), EventActivity.class);
+            intent.putExtra("id", eventId);
+
+            // Show a toast message
+            Toast.makeText(getContext(), "Please correct the fields and resend the message.", Toast.LENGTH_LONG).show();
+
+            startActivity(intent);
         }
     }
 }
