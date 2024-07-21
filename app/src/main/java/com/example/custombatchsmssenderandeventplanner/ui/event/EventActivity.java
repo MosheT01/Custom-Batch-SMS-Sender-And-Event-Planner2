@@ -175,9 +175,9 @@ public class EventActivity extends AppCompatActivity {
             String contactName = nameInput.getEditText().getText().toString();
             String contactPhone = phoneInput.getEditText().getText().toString();
 
-            if (contactName.isEmpty() || contactPhone.isEmpty() || !isValidPhoneNumber(contactPhone)) {
-              //  Toast.makeText(context, "Name or phone cannot be empty or invalid", Toast.LENGTH_SHORT).show();
-               // return;
+            if (contactName.isEmpty() || contactPhone.isEmpty()) {
+              //  Toast.makeText(context, "Name or phone cannot be empty", Toast.LENGTH_SHORT).show();
+                // return;
             }
 
             HashMap<String, Object> contact = new HashMap<>();
@@ -186,10 +186,6 @@ public class EventActivity extends AppCompatActivity {
 
             addContactToDatabase(contact, alertDialog);
         });
-    }
-
-    private boolean isValidPhoneNumber(String phoneNumber) {
-        return phoneNumber.matches("[+]?[0-9-]+");
     }
 
     private void addContactToDatabase(HashMap<String, Object> contact, AlertDialog alertDialog) {
@@ -330,18 +326,28 @@ public class EventActivity extends AppCompatActivity {
         for (Contact contact : contactsList) {
             executor.submit(() -> {
                 try {
-                    if (isValidContact(contact) && arePlaceholdersValid(event.getMessage(), contact)) {
+                    // Validate the contact details and message placeholders
+                    if (isValidContact(contact) && isValidMessage(event.getMessage(), contact, event)) {
                         String message = formatMessage(event.getMessage(), contact.getName(), contact.getPhone(), event.getName(), event.getLocation(), event.getDate());
                         sendSMS(contact.getPhone(), message);
                         Log.d(TAG, "LINK_DEBUG: SMS sent to: " + contact.getPhone());
                         results.add("SMS sent to: " + contact.getPhone());
+
+                        // Update Firestore to indicate the message was sent successfully
+                        updateContactMessageStatus(contact, true);
                     } else {
-                        Log.e(TAG, "LINK_DEBUG: Invalid contact or message for: " + contact.getPhone());
-                        results.add("SMS sending failed (invalid contact or message) to: " + contact.getPhone());
+                        Log.e(TAG, "LINK_DEBUG: Invalid contact details or message placeholders for: " + contact.getPhone());
+                        results.add("SMS sending failed (invalid contact details or placeholders) to: " + contact.getPhone());
+
+                        // Update Firestore to indicate the message failed
+                        updateContactMessageStatus(contact, false);
                     }
                 } catch (Exception e) {
                     Log.e(TAG, "LINK_DEBUG: SMS sending failed to: " + contact.getPhone(), e);
                     results.add("SMS sending failed to: " + contact.getPhone());
+
+                    // Update Firestore to indicate the message failed
+                    updateContactMessageStatus(contact, false);
                 }
             });
         }
@@ -361,23 +367,55 @@ public class EventActivity extends AppCompatActivity {
         });
     }
 
+    private void updateContactMessageStatus(Contact contact, boolean messageSent) {
+        HashMap<String, Object> updatedContact = new HashMap<>();
+        updatedContact.put("name", contact.getName());
+        updatedContact.put("phone", contact.getPhone());
+        updatedContact.put("messageSent", messageSent);
+
+        db.document("events/" + eventId)
+                .update("contacts", FieldValue.arrayRemove(contact.toHashMap()))
+                .addOnSuccessListener(aVoid -> db.document("events/" + eventId)
+                        .update("contacts", FieldValue.arrayUnion(updatedContact)))
+                .addOnFailureListener(e -> Log.e(TAG, "Failed to update contact message status", e));
+    }
+
+
     private boolean isValidContact(Contact contact) {
+        // Check if the contact name is empty
         if (contact.getName().isEmpty()) {
             return false;
         }
+
+        // Check if the phone number contains only valid characters
         if (!contact.getPhone().matches("[+]?[0-9-]+")) {
             return false;
         }
+
         return true;
     }
 
-    private boolean arePlaceholdersValid(String messageTemplate, Contact contact) {
-        return !(messageTemplate.contains("{name}") && contact.getName().isEmpty() ||
-                messageTemplate.contains("{phone}") && contact.getPhone().isEmpty() ||
-                messageTemplate.contains("{event name}") && event.getName().isEmpty() ||
-                messageTemplate.contains("{location}") && event.getLocation().isEmpty() ||
-                messageTemplate.contains("{date}") && event.getDate() == null ||
-                messageTemplate.contains("{time}") && event.getDate() == null);
+    private boolean isValidMessage(String messageTemplate, Contact contact, Event event) {
+        // Check if message contains required placeholders and valid replacements
+        if (messageTemplate.contains("{name}") && contact.getName().isEmpty()) {
+            return false;
+        }
+        if (messageTemplate.contains("{phone}") && !contact.getPhone().matches("[+]?[0-9-]+")) {
+            return false;
+        }
+        if (messageTemplate.contains("{event name}") && event.getName().isEmpty()) {
+            return false;
+        }
+        if (messageTemplate.contains("{location}") && event.getLocation().isEmpty()) {
+            return false;
+        }
+        if (messageTemplate.contains("{date}") && event.getDate() == null) {
+            return false;
+        }
+        if (messageTemplate.contains("{time}") && event.getDate() == null) { // Assuming date and time are from the same field
+            return false;
+        }
+        return true;
     }
 
     private void sendSMS(String phoneNumber, String message) {
@@ -416,17 +454,21 @@ public class EventActivity extends AppCompatActivity {
         Log.d(TAG, "LINK_DEBUG: Formatted message: " + formattedMessage);
         return formattedMessage;
     }
+
     private String generateGoogleCalendarLink(String eventName, String eventLocation, Date eventDate) {
         try {
+            // Set up the date format in UTC
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.getDefault());
             dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
             String startDate = dateFormat.format(eventDate);
 
+            // Set the event duration (e.g., 1 hour)
             Calendar calendar = Calendar.getInstance();
             calendar.setTime(eventDate);
-            calendar.add(Calendar.HOUR_OF_DAY, 1);
+            calendar.add(Calendar.HOUR_OF_DAY, 1); // Add 1 hour to the start time
             String endDate = dateFormat.format(calendar.getTime());
 
+            // Generate the Google Calendar link
             String link = "https://calendar.google.com/calendar/render?action=TEMPLATE" +
                     "&text=" + Uri.encode(eventName) +
                     "&details=" + Uri.encode("Details about the event") +
@@ -459,6 +501,7 @@ public class EventActivity extends AppCompatActivity {
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
+        // Pass the necessary extras to navigate to the report fragment
         intent.putExtra("navigateToReport", true);
         intent.putStringArrayListExtra("reportResults", new ArrayList<>(results));
 
@@ -486,6 +529,7 @@ public class EventActivity extends AppCompatActivity {
         }
         notificationManager.notify(1, builder.build());
     }
+
 }
 
 class SimpleTextWatcher implements TextWatcher {

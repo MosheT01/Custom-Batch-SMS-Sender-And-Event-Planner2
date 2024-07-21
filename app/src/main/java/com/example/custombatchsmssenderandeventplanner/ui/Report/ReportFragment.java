@@ -5,10 +5,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -19,6 +17,7 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Objects;
 
 public class ReportFragment extends Fragment {
 
@@ -59,16 +58,24 @@ public class ReportFragment extends Fragment {
                             }
 
                             // Get contacts list
-                            ArrayList<HashMap<String, String>> contacts = (ArrayList<HashMap<String, String>>) document.get("contacts");
+                            ArrayList<HashMap<String, Object>> contacts = (ArrayList<HashMap<String, Object>>) document.get("contacts");
                             Log.d(TAG, "Fetched contacts: " + contacts);
 
                             // Ensure contacts list is not null
                             if (contacts != null) {
-                                for (HashMap<String, String> contact : contacts) {
-                                    String contactName = contact.get("name");
-                                    String phoneNumber = contact.get("phone");
-                                    String messageSentString = contact.get("messageSent");
-                                    Boolean messageSent = "true".equalsIgnoreCase(messageSentString);
+                                for (HashMap<String, Object> contact : contacts) {
+                                    String contactName = (String) contact.get("name");
+                                    String phoneNumber = (String) contact.get("phone");
+                                    Boolean messageSent = false;
+
+                                    if (contact.containsKey("messageSent")) {
+                                        Object messageSentObj = contact.get("messageSent");
+                                        if (messageSentObj instanceof Boolean) {
+                                            messageSent = (Boolean) messageSentObj;
+                                        } else if (messageSentObj instanceof String) {
+                                            messageSent = Boolean.parseBoolean((String) messageSentObj);
+                                        }
+                                    }
 
                                     // Check if contactName and phoneNumber are not null
                                     if (contactName != null && phoneNumber != null) {
@@ -104,7 +111,6 @@ public class ReportFragment extends Fragment {
         TextView textViewPhoneNumber = linearLayout.findViewById(R.id.textViewPhoneNumber);
         TextView textViewEventInfo = linearLayout.findViewById(R.id.textViewEventInfo);
         TextView textViewStatus = linearLayout.findViewById(R.id.textViewStatus);
-//        Button buttonResend = linearLayout.findViewById(R.id.buttonResend);
 
         // Set text to TextViews
         textViewContactName.setText(contactName);
@@ -112,19 +118,11 @@ public class ReportFragment extends Fragment {
         textViewEventInfo.setText(eventInfo);
 
         // Set status or show resend button based on messageSent flag
-        textViewStatus.setText("Sent successfully");
-        textViewStatus.setVisibility(View.VISIBLE);
-//        buttonResend.setVisibility(View.GONE);
-//        if (messageSent) {
-//            textViewStatus.setText("Sent successfully");
-//            textViewStatus.setVisibility(View.VISIBLE);
-//            buttonResend.setVisibility(View.GONE);
-//        } else {
-//            textViewStatus.setText("UNSent");
-//            textViewStatus.setVisibility(View.VISIBLE);
-//            buttonResend.setVisibility(View.VISIBLE);
-//            buttonResend.setOnClickListener(v -> resendMessage(contactName, phoneNumber, eventInfo, textViewStatus, buttonResend));
-//        }
+        if (messageSent != null && messageSent) {
+            textViewStatus.setText("Sent successfully");
+        } else {
+            textViewStatus.setText("Not sent");
+        }
 
         // Set layout parameters to add spacing
         LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
@@ -139,40 +137,4 @@ public class ReportFragment extends Fragment {
         // Add the LinearLayout to the container layout
         containerLayout.addView(linearLayout);
     }
-
-    private void resendMessage(String contactName, String phoneNumber, String eventInfo, TextView textViewStatus, Button buttonResend) {
-        // Logic to resend the message
-        boolean success = contactName != null && phoneNumber != null;
-
-        if (success) {
-            textViewStatus.setText("Sent successfully");
-            textViewStatus.setVisibility(View.VISIBLE);
-            buttonResend.setVisibility(View.GONE);
-            // Optionally update Firestore to indicate the message was sent successfully
-            // db.collection("events").document(eventId).update("contacts", updatedContacts);
-        } else {
-            Toast.makeText(getContext(), "Failed to resend message", Toast.LENGTH_SHORT).show();
-        }
-    }
 }
-
-
-
-
-
-//boolean success;
-//        if(contactName == NULL || phoneNumber == NULL){
-//success = false;
-//        }else{
-//success = true;
-//        }
-//        // Set status or show resend button based on messageSent flag
-//        if(success){
-//        textViewStatus.setText("Sent successfully");
-//            textViewStatus.setVisibility(View.VISIBLE);
-//            buttonResend.setVisibility(View.GONE);
-//        } else{
-//                textViewStatus.setText("UNSent");
-//            textViewStatus.setVisibility(View.VISIBLE);
-//            buttonResend.setVisibility(View.GONE);
-//        }

@@ -1,5 +1,6 @@
 package com.example.custombatchsmssenderandeventplanner;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -59,6 +60,11 @@ public class MainActivity extends AppCompatActivity {
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
         NavigationUI.setupWithNavController(navigationView, navController);
+
+        Intent intent = getIntent();
+        if (intent.getBooleanExtra("navigateToReport", false)) {
+            navController.navigate(R.id.nav_report);
+        }
     }
 
     @Override
