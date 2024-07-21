@@ -175,9 +175,9 @@ public class EventActivity extends AppCompatActivity {
             String contactName = nameInput.getEditText().getText().toString();
             String contactPhone = phoneInput.getEditText().getText().toString();
 
-            if (contactName.isEmpty() || contactPhone.isEmpty()) {
-                Toast.makeText(context, "Name or phone cannot be empty", Toast.LENGTH_SHORT).show();
-                return;
+            if (contactName.isEmpty() || contactPhone.isEmpty() || !isValidPhoneNumber(contactPhone)) {
+              //  Toast.makeText(context, "Name or phone cannot be empty or invalid", Toast.LENGTH_SHORT).show();
+               // return;
             }
 
             HashMap<String, Object> contact = new HashMap<>();
@@ -186,6 +186,10 @@ public class EventActivity extends AppCompatActivity {
 
             addContactToDatabase(contact, alertDialog);
         });
+    }
+
+    private boolean isValidPhoneNumber(String phoneNumber) {
+        return phoneNumber.matches("[+]?[0-9-]+");
     }
 
     private void addContactToDatabase(HashMap<String, Object> contact, AlertDialog alertDialog) {
@@ -316,8 +320,6 @@ public class EventActivity extends AppCompatActivity {
         }
     }
 
-
-
     public void sendMessages() {
         ExecutorService executor = Executors.newFixedThreadPool(contactsList.size());
         Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -328,10 +330,15 @@ public class EventActivity extends AppCompatActivity {
         for (Contact contact : contactsList) {
             executor.submit(() -> {
                 try {
-                    String message = formatMessage(event.getMessage(), contact.getName(), contact.getPhone(), event.getName(), event.getLocation(), event.getDate());
-                    sendSMS(contact.getPhone(), message);  // No Toast in sendSMS
-                    Log.d(TAG, "LINK_DEBUG: SMS sent to: " + contact.getPhone());
-                    results.add("SMS sent to: " + contact.getPhone());
+                    if (isValidContact(contact) && arePlaceholdersValid(event.getMessage(), contact)) {
+                        String message = formatMessage(event.getMessage(), contact.getName(), contact.getPhone(), event.getName(), event.getLocation(), event.getDate());
+                        sendSMS(contact.getPhone(), message);
+                        Log.d(TAG, "LINK_DEBUG: SMS sent to: " + contact.getPhone());
+                        results.add("SMS sent to: " + contact.getPhone());
+                    } else {
+                        Log.e(TAG, "LINK_DEBUG: Invalid contact or message for: " + contact.getPhone());
+                        results.add("SMS sending failed (invalid contact or message) to: " + contact.getPhone());
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, "LINK_DEBUG: SMS sending failed to: " + contact.getPhone(), e);
                     results.add("SMS sending failed to: " + contact.getPhone());
@@ -352,6 +359,25 @@ public class EventActivity extends AppCompatActivity {
             Toast.makeText(context, "Messages sent!", Toast.LENGTH_SHORT).show();
             sendNotification(results);
         });
+    }
+
+    private boolean isValidContact(Contact contact) {
+        if (contact.getName().isEmpty()) {
+            return false;
+        }
+        if (!contact.getPhone().matches("[+]?[0-9-]+")) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean arePlaceholdersValid(String messageTemplate, Contact contact) {
+        return !(messageTemplate.contains("{name}") && contact.getName().isEmpty() ||
+                messageTemplate.contains("{phone}") && contact.getPhone().isEmpty() ||
+                messageTemplate.contains("{event name}") && event.getName().isEmpty() ||
+                messageTemplate.contains("{location}") && event.getLocation().isEmpty() ||
+                messageTemplate.contains("{date}") && event.getDate() == null ||
+                messageTemplate.contains("{time}") && event.getDate() == null);
     }
 
     private void sendSMS(String phoneNumber, String message) {
@@ -392,18 +418,15 @@ public class EventActivity extends AppCompatActivity {
     }
     private String generateGoogleCalendarLink(String eventName, String eventLocation, Date eventDate) {
         try {
-            // Set up the date format in UTC
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.getDefault());
             dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
             String startDate = dateFormat.format(eventDate);
 
-            // Set the event duration (e.g., 1 hour)
             Calendar calendar = Calendar.getInstance();
             calendar.setTime(eventDate);
-            calendar.add(Calendar.HOUR_OF_DAY, 1); // Add 1 hour to the start time
+            calendar.add(Calendar.HOUR_OF_DAY, 1);
             String endDate = dateFormat.format(calendar.getTime());
 
-            // Generate the Google Calendar link
             String link = "https://calendar.google.com/calendar/render?action=TEMPLATE" +
                     "&text=" + Uri.encode(eventName) +
                     "&details=" + Uri.encode("Details about the event") +
@@ -419,7 +442,6 @@ public class EventActivity extends AppCompatActivity {
         }
     }
 
-
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             CharSequence name = "Messages Sent";
@@ -434,24 +456,25 @@ public class EventActivity extends AppCompatActivity {
     }
 
     private void sendNotification(List<String> results) {
-        Intent intent = new Intent(this, EventActivity.class);
+        Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
-        // Pass the event ID to the EventActivity
-        intent.putExtra("id", eventId);
+        intent.putExtra("navigateToReport", true);
+        intent.putStringArrayListExtra("reportResults", new ArrayList<>(results));
 
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
 
-        StringBuilder notificationContent = new StringBuilder("All messages have been sent.\n");
-        for (String result : results) {
-            notificationContent.append(result).append("\n");
-        }
+        boolean allMessagesSentSuccessfully = results.stream().allMatch(result -> result.startsWith("SMS sent to"));
+
+        String notificationTitle = "Messages Sent";
+        String notificationContent = allMessagesSentSuccessfully ? "All messages sent successfully."
+                : "One or more messages failed. See the report for details.";
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setContentTitle("Messages Sent")
-                .setContentText(notificationContent.toString())
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(notificationContent.toString()))
+                .setContentTitle(notificationTitle)
+                .setContentText(notificationContent)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(notificationContent))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
@@ -464,7 +487,6 @@ public class EventActivity extends AppCompatActivity {
         notificationManager.notify(1, builder.build());
     }
 }
-
 
 class SimpleTextWatcher implements TextWatcher {
 
